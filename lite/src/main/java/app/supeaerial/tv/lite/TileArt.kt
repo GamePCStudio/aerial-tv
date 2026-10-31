@@ -159,7 +159,7 @@ object TileFactory {
         Canvas(out).apply {
             drawColor(GRAPHITE_BOTTOM)
             icon.setBounds(0, 0, s, s)
-            draw(icon)
+            icon.draw(this)
         }
         return out
     }
