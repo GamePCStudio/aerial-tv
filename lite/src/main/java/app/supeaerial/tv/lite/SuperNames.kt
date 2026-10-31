@@ -11,14 +11,14 @@ import java.nio.charset.CodingErrorAction
 data class NameGroup(val name: String, val packages: List<String>)
 
 /**
- * SuperHome's preset list: `supeaerialappname.txt`, package name → the name shown on the tile, plus
+ * SuperHome's preset list: `superaerialappname.txt`, package name → the name shown on the tile, plus
  * preset folders. The same file in three places and one list built into the APK:
  *
- *  - the copy the owner edits on the TV: `/sdcard/tv/supeaerialappname.txt`, or the app's own
+ *  - the copy the owner edits on the TV: `/sdcard/tv/superaerialappname.txt`, or the app's own
  *    directory on external storage (no permission needed there, which makes it usable on new firmwares too);
  *  - the copy on our own site, refreshed at most every [CHECK_EVERY_MS] and kept in
  *    `files/super/appname.txt` so the TV still has it offline;
- *  - the copy packed in this APK (`assets/supeaerialappname.txt`), so a TV with no network at all
+ *  - the copy packed in this APK (`assets/superaerialappname.txt`), so a TV with no network at all
  *    still gets the preset names.
  *
  * The names a person types themselves for one app (the phone page's rename, [AppNames]) outrank all
@@ -26,20 +26,27 @@ data class NameGroup(val name: String, val packages: List<String>)
  * the local file outranks the downloaded one, because putting a file on the TV is the owner saying
  * "this is what I want", and it works whatever the network did.
  *
- * File format — one entry a line, `#` starts a comment, blank lines ignored, fields split by
- * spaces or tabs:
+ * File format — one entry a line, fields split by spaces or tabs. The `name` line's third field and
+ * everything after it is the shown name, so it may hold spaces; a comma may stand for the one space
+ * between the package and that name (`name com.hgtv.star,红果短剧TV`). The `group` line's second field
+ * is the folder's name and must not hold spaces, and its packages follow, split by commas, spaces or
+ * tabs; the `url` line takes the rest of the line as the address to fetch the list from.
  * ```
- * name   com.hgtv.star           红果短剧TV          # the tile says this instead of the app's own label
- * group  影视                     com.hgtv.star,com.gitvdemo.video   # a preset folder (its name holds no spaces)
- * url    https://example.com/my-appname.txt         # where to fetch the list, instead of the built-in address
+ * name   com.hgtv.star           红果短剧TV
+ * group  影视                     com.hgtv.star,com.gitvdemo.video
+ * url    https://example.com/my-appname.txt
  * ```
- * Written as UTF-8; a file saved as GBK (Windows Notepad's default in China) is read as GBK.
+ * A `#` or `//` at the start of a line is a comment and blank lines are ignored — but a comment
+ * written after the fields is not stripped: it becomes part of the name, of the group's package
+ * list, or of the URL, so comments hold a whole line. Within one file a `name` the later line
+ * repeats wins, while a `group` whose name was already used is dropped whole. UTF-8; a file saved
+ * as GBK (Windows Notepad's default in China) is read as GBK.
  */
 object SuperNames {
     private const val TAG = "SuperHome"
-    private const val FILE = "supeaerialappname.txt"
-    /** Our own site, the one the icon library already comes from (site/super/ in this repository). */
-    private const val CLOUD = "https://aerial.qust.me/super/$FILE"
+    private const val FILE = "superaerialappname.txt"
+    /** The owner's own site; the copy in this repository is `site/superaerial/`, deployed by hand. */
+    private const val CLOUD = "https://800915.xyz/superaerial/$FILE"
     private const val CHECK_EVERY_MS = 12 * 60 * 60 * 1000L
     /** A failed fetch is tried again after this, not on every start. */
     private const val RETRY_MS = 10 * 60 * 1000L
@@ -212,7 +219,9 @@ object SuperNames {
             val rest = head.getOrNull(1)?.trim().orEmpty()
             when (head[0].lowercase()) {
                 "name" -> {
-                    val parts = rest.split(Regex("[ \\t]+"), 2)
+                    // The package ends at the first space, tab or comma and everything after it is the
+                    // shown name, spaces kept: `name com.x,名字` means the same as `name com.x 名字`.
+                    val parts = rest.split(Regex("[,\t ]+"), 2)
                     val pkg = parts.getOrNull(0)?.takeIf { it.isNotEmpty() } ?: continue
                     val shown = parts.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() } ?: continue
                     names[pkg] = shown

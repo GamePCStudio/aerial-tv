@@ -1,0 +1,27 @@
+# SuperHome（超级影视桌面）的 App 名称与分组预设
+#
+# 一行一条，空行忽略；字段之间用空格或 Tab 分开。
+# name 行的「包名」和「显示名」之间也可以直接用逗号，显示名里的空格照原样保留。
+# 注释必须整行以 # 或 // 开头：写在内容后面不会被去掉，会被当成名字的一部分。
+# 文件请存成 UTF-8；Windows 记事本默认的 GBK 也读得出（程序按字节自己判断），带 BOM 也行。
+#
+# 放哪里（三个位置取第一个存在的，不合并）：
+#   1. 你在 App 里 / 手机页给单个 App 改的名字              —— 最优先
+#   2. 电视上的这个文件：/sdcard/tv/superaerialappname.txt  —— 你自己放的，优先于云端
+#      新固件没给存储权限时放 App 自有目录：
+#      /sdcard/Android/data/app.supeaerial.tv.lite/files/superaerialappname.txt
+#   3. 云端下载的那份（缺省 https://800915.xyz/superaerial/superaerialappname.txt；
+#      想换地址就在本地文件里写一行 url，12 小时查一次）
+#   4. 打包进 APK 的这一份                                  —— 没联过网的电视也有预设名
+#
+# 语法：
+#   name   包名   显示名
+#   group  组名（不能带空格）  包1,包2,包3
+#   url    https://你的地址/superaerialappname.txt   （只有本地文件里的 url 有效）
+#
+# 分组是「播种」，只处理程序第一次见到的 App：已经摆过的 App 不会被移动；
+# 一个文件夹的全部包名写在一行里（同名组只有第一行算）；
+# ROM 预装的 App 程序自己收进「系统」文件夹，不用写在这里。
+# 完整写法与踩坑见仓库里的 superaerialappname填写说明.md。
+
+name com.hgtv.star,红果短剧TV

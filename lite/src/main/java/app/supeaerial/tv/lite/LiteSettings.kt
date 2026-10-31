@@ -37,34 +37,38 @@ enum class Effects(val key: String) {
  * SuperHome: the shape of an app's picture. Wide is Aerial Lite's own tile art (a 16:9 banner cut to
  * the tile); Square is the app's own Android icon, drawn as the launchers on every phone show it.
  * The number of apps a row follows the shape, so a square tile does not need the wide one's height.
+ * [DEFAULT] is the shape a TV starts on: SuperHome ships square icons, eight a row.
  */
 enum class IconShape(val key: String, val columns: IntRange, val defaultColumns: Int) {
-    Wide("wide", 4..6, 6), Square("square", 5..8, 7);
+    Wide("wide", 4..6, 6), Square("square", 5..8, 8);
 
     val square get() = this == Square
 
     companion object {
-        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: Wide
+        val DEFAULT = Square
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: DEFAULT
     }
 }
 
 /**
- * Lite's preferences, under the full app's names and defaults (settings/AerialSettings.kt), so the
- * two read alike and the phone page's settings mean the same. Main thread only.
+ * Lite's preferences, under the full app's names (settings/AerialSettings.kt), so the two read alike
+ * and the phone page's settings mean the same. The starting values below are SuperHome's own: a fresh
+ * TV gets square icons eight a row, two rows, no plate under the top row, and every name shown.
+ * Main thread only.
  */
 object LiteSettings {
     private const val PREFS = "settings"
     private lateinit var prefs: SharedPreferences
 
     var focusStyle = FocusStyle.HighContrast; private set
-    var oneRowHome = true; private set
+    var oneRowHome = false; private set
     var peekNextRow = true; private set
     /** SuperHome: an app's picture is Aerial's wide tile art, or the app's own square icon. */
-    var iconShape = IconShape.Wide; private set
+    var iconShape = IconShape.DEFAULT; private set
     /** Apps a row on Home and in folders; [IconShape.columns] bounds it and [IconShape.defaultColumns] is its default. */
-    var homeColumns = IconShape.Wide.defaultColumns; private set
-    var homePlate = true; private set
-    var showAllNames = false; private set
+    var homeColumns = IconShape.DEFAULT.defaultColumns; private set
+    var homePlate = false; private set
+    var showAllNames = true; private set
     var clockRight = false; private set
     var largeClock = false; private set
     var showWeather = true; private set
@@ -91,14 +95,14 @@ object LiteSettings {
         if (::prefs.isInitialized) return
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         focusStyle = FocusStyle.of(prefs.getString("focus_style", null))
-        oneRowHome = prefs.getBoolean("one_row_home", true)
+        oneRowHome = prefs.getBoolean("one_row_home", false)
         peekNextRow = prefs.getBoolean("peek_next_row", true)
         // The shape first: the saved count of a different shape is not a choice for this one.
         iconShape = IconShape.of(prefs.getString("icon_shape", null))
         homeColumns = prefs.getInt("home_columns", iconShape.defaultColumns).takeIf { it in HOME_COLUMNS }
             ?: iconShape.defaultColumns
-        homePlate = prefs.getBoolean("home_plate", true)
-        showAllNames = prefs.getBoolean("show_all_names", false)
+        homePlate = prefs.getBoolean("home_plate", false)
+        showAllNames = prefs.getBoolean("show_all_names", true)
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
         showWeather = prefs.getBoolean("show_weather", true)

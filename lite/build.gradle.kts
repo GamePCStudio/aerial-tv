@@ -21,11 +21,12 @@ android {
         minSdk = 14
         targetSdk = 34
         // This branch restarts versioning: 1xx for the SuperHome line.
-        versionCode = 101
-        versionName = "1.0"
+        versionCode = 102
+        versionName = "1.1"
     }
 
-    // Signed with the same key as Aerial (see app/build.gradle.kts and docs/HANDOFF.md).
+    // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);
+    // it is not upstream's, so an existing SuperHome install cannot be overwritten by a foreign build.
     val signingProps = rootProject.file("local/signing.properties")
     signingConfigs {
         if (signingProps.exists()) {

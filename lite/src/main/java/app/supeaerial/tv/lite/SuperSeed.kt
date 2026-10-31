@@ -30,6 +30,7 @@ object SuperSeed {
         val groups = SuperNames.groups()
         val systemName = context.getString(R.string.folder_system)
         val folderKeys = ArrayList<String>()
+        var systemKey: String? = null
         var moved = false
         val going = LinkedHashMap<String, MutableList<String>>()
         for (e in fresh) {
@@ -44,13 +45,22 @@ object SuperSeed {
             for (key in keys) id = layout.putInFolder(key, id, name)
             // Only a folder started now goes to the end; one already on Home keeps its place there.
             if (already == null) id?.let { folderKeys += FOLDER_KEY_PREFIX + it }
+            if (already == null && name == systemName) id?.let { systemKey = FOLDER_KEY_PREFIX + it }
             moved = true
             Log.i(TAG, "preset folder «$name» holds ${keys.size} app(s): ${keys.joinToString(", ")}")
         }
-        // A folder made now goes to the end of Home, beside the TV's own utilities, rather than in
-        // the middle of the grid where its first app happened to sort.
-        val last = home.lastOrNull()
-        if (last != null) for (key in folderKeys) runCatching { layout.move(key, last) }
+        // A folder made now goes to the end of Home rather than in the middle of the grid where its
+        // first app happened to sort, and the system folder goes behind every other one started here.
+        val tail = ArrayList(folderKeys.filter { it != systemKey }).apply { systemKey?.let { add(it) } }
+        if (home.isNotEmpty()) {
+            // Each goes after the tile moved before it: placing them all after the same tile would
+            // leave the tail in the reverse of this order.
+            var after = home.last()
+            for (key in tail) {
+                runCatching { layout.move(key, after) }
+                after = key
+            }
+        }
         remember(context, apps, hidden)
         // Home lays its tiles out again when anything moved, even into a folder that was already
         // there. The pass after it has nothing fresh, so this cannot start over.
