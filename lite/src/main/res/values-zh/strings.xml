@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 桌面的名字（简体中文）。其余语言没有这一份，走 values/ 的英文。 -->
+    <string name="app_name">超级影视桌面</string>
+
+    <!-- 个性化里的磁贴形状一行。 -->
+    <string name="sh_icon_type">App图标类型</string>
+    <string name="sh_shape_wide">长方形</string>
+    <string name="sh_shape_square">正方形</string>
+    <string name="sh_icon_type_hint">长方形：用 Aerial 的磁贴美术，取 App 自带的电视横幅，每排 4–6 个。正方形：用 App 自己的安卓标准图标，每排 5–8 个。</string>
+
+    <string name="folder_system">系统</string>
+</resources>

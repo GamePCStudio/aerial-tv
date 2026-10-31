@@ -20,6 +20,10 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- SuperHome's preset list under /sdcard/tv/. Granted at install on every 4.x TV, which is
+         what Lite runs on; the app's own directory on external storage needs none, and works
+         wherever this one does not. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <!-- largeHeap: on Android 4.x bitmaps live on the Java heap, which is 64-128 MB on these TVs. -->
     <application

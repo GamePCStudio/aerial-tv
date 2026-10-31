@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Aerial Lite</string>
+    <!-- The launcher's name. Lite's own, kept out of the full app's shared copy (see the
+         copyStrings filter in lite/build.gradle.kts, which drops the full app's app_name). -->
+    <string name="app_name">SuperHome</string>
+
+    <!-- SuperHome's Personalize row: the shape of an app's picture. -->
+    <string name="sh_icon_type">App icon type</string>
+    <string name="sh_shape_wide">Wide</string>
+    <string name="sh_shape_square">Square</string>
+    <!-- The note under the row, shown while it holds focus. -->
+    <string name="sh_icon_type_hint">Wide draws Aerial\'s tile art from the app\'s TV banner, four to six a row. Square shows the app\'s own Android icon, five to eight a row.</string>
+
+    <!-- SuperHome's preset folder for the apps on the system image. -->
+    <string name="folder_system">System</string>
 </resources>

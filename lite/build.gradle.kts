@@ -1,26 +1,28 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
-// Aerial Lite: Home for Android 4.0-4.4 TVs, which the Compose app cannot run on (Compose needs
-// Android 5.0). Plain Views, no AndroidX, so the APK stays small and Dalvik has little to load.
-// Performance comes before looks here: see docs/LITE.md.
+// SuperHome (AerialTVSuperLite branch): Super Aerial's Lite home for Android 4.0-4.4 TVs, built from
+// Aerial Lite. Plain Views, no AndroidX, so the APK stays small and Dalvik has little to load.
+// Performance comes before looks here: see docs/LITE.md, and 程序说明.md for what this branch changes.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
 android {
-    namespace = "app.orchard.tv.lite"
+    namespace = "app.supeaerial.tv.lite"
     compileSdk = 36
 
     defaultConfig {
         // Its own package: the 4.x TVs never get the full app, and the two update separately.
-        applicationId = "app.orchard.tv.lite"
+        // SuperHome keeps a package of its own too, so it installs beside Aerial Lite on one TV.
+        applicationId = "app.supeaerial.tv.lite"
         // Android 4.0.
         minSdk = 14
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.12"
+        // This branch restarts versioning: 1xx for the SuperHome line.
+        versionCode = 101
+        versionName = "1.0"
     }
 
     // Signed with the same key as Aerial (see app/build.gradle.kts and docs/HANDOFF.md).
@@ -55,7 +57,9 @@ android {
     }
     lint {
         // Old firmwares are the whole point; NewApi still guards every call above Android 4.0.
-        disable += setOf("OldTargetApi", "ExpiredTargetSdkVersion")
+        // MissingTranslation: this branch's own wording is English and Chinese; the TV's other
+        // languages keep the English from values/, which is what a brand-new string always does.
+        disable += setOf("OldTargetApi", "ExpiredTargetSdkVersion", "MissingTranslation")
     }
     packaging {
         resources.excludes += setOf("/META-INF/**", "kotlin/**", "DebugProbesKt.bin", "kotlin-tooling-metadata.json")
@@ -90,14 +94,14 @@ val copySources by tasks.registering(Copy::class) {
     from(rootProject.file("app/src/main/java/app/orchard/tv/wallpaper/ScreensaverVideos.kt"))
     from(rootProject.file("app/src/main/java/app/orchard/tv/system/MitvPanel.kt"))
     from(rootProject.file("app/src/main/java/app/orchard/tv/system/DeviceProfile.kt"))
-    into(sharedSources.map { it.dir("app/orchard/tv/lite") })
-    // Into Lite's package; Compose's state and AndroidX's prefs.edit {} come from Lite's Shims.kt.
+    into(sharedSources.map { it.dir("app/supeaerial/tv/lite") })
+    // Into SuperHome's package; Compose's state and AndroidX's prefs.edit {} come from Lite's Shims.kt.
     filter { line ->
         when {
             line.startsWith("import androidx.compose.runtime.") || line == "import androidx.core.content.edit" -> ""
             line.startsWith("import app.orchard.tv.") -> ""
-            else -> line.replace(Regex("^package app\\.orchard\\.tv(\\.[a-z.]+)?$"), "package app.orchard.tv.lite")
-                .replace("app.orchard.tv.ui.theme.Glyph", "app.orchard.tv.lite.Glyph")
+            else -> line.replace(Regex("^package app\\.orchard\\.tv(\\.[a-z.]+)?$"), "package app.supeaerial.tv.lite")
+                .replace("app.orchard.tv.ui.theme.Glyph", "app.supeaerial.tv.lite.Glyph")
         }
     }
 }

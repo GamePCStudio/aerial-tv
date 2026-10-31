@@ -1,0 +1,58 @@
+name: SuperHome Lite (Android 4.x)
+
+on:
+  push:
+    branches: [AerialTVSuperLite]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lite:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      # The runner's own SDK, asked for by name: a runner image without this platform still builds
+      # instead of leaving it to Gradle's SDK auto-download.
+      - name: Android platform 36
+        run: yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      # The release key, when this repository's secrets hold it (SIGNING_KEYSTORE_BASE64,
+      # SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, SIGNING_KEY_PASSWORD). lite/build.gradle.kts reads
+      # local/signing.properties and falls back to the debug key without it, so a build still comes out.
+      - name: Release key
+        env:
+          KEYSTORE: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then echo "no release key in the secrets: this APK is debug-signed"; exit 0; fi
+          mkdir -p local
+          printf '%s' "$KEYSTORE" | base64 -d > local/signing.keystore
+          printf 'storeFile=signing.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > local/signing.properties
+          keytool -list -keystore local/signing.keystore -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS"
+
+      - name: Build :lite:assembleRelease
+        run: ./gradlew :lite:assembleRelease --stacktrace
+
+      - name: What came out
+        run: |
+          ls -l lite/build/outputs/apk/release/
+          md5sum lite/build/outputs/apk/release/*.apk
+          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --print-certs lite/build/outputs/apk/release/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperHome-lite-${{ github.run_number }}
+          path: lite/build/outputs/apk/release/*.apk
+          if-no-files-found: error
