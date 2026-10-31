@@ -9,5 +9,5 @@
     <string name="sh_shape_square">正方形</string>
     <string name="sh_icon_type_hint">长方形：用 Aerial 的磁贴美术，取 App 自带的电视横幅，每排 4–6 个。正方形：用 App 自己的安卓标准图标，每排 5–8 个。</string>
 
-    <string name="folder_system">系统</string>
+    <string name="folder_system">系统应用</string>
 </resources>

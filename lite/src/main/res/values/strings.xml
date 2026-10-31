@@ -12,5 +12,5 @@
     <string name="sh_icon_type_hint">Wide draws Aerial\'s tile art from the app\'s TV banner, four to six a row. Square shows the app\'s own Android icon, five to eight a row.</string>
 
     <!-- SuperHome's preset folder for the apps on the system image. -->
-    <string name="folder_system">System</string>
+    <string name="folder_system">System apps</string>
 </resources>

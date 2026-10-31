@@ -15,7 +15,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-enum class WallpaperKind { Daily, Builtin, Photo }
+enum class WallpaperKind { Daily, Still, Builtin, Photo }
 
 class Wallpaper(val id: String, val kind: WallpaperKind, val title: String, val caption: String? = null)
 
@@ -31,7 +31,8 @@ enum class ScreensaverMode(val key: String) {
 /**
  * What is behind Home, as the full app's wallpaper/Wallpapers.kt with its ids, so the phone page
  * works the same: Bing's photo of the day ("daily:latest" follows the newest; the last eight are
- * kept), Aerial's built-in pictures ("grad:<key>"), the owner's photos from the phone
+ * kept), SuperHome's own pictures, shipped in the APK ("still:<key>"), Aerial's built-in pictures
+ * ("grad:<key>"), the owner's photos from the phone
  * ("photo:<id>"; "photos:rotate" shows a different one each day). Lite has no moving wallpapers.
  *
  * Home's backdrop is baked once per picture at the screen's size, shaded, kept on disk; its frosted
@@ -42,13 +43,23 @@ object Wallpapers {
     const val LATEST_DAILY = "daily:latest"
     const val ROTATE_PHOTOS = "photos:rotate"
     const val VIDEOS = "videos:mine"
+    private const val STILL_PREFIX = "still:"
+    private const val STILL_ASSETS = "wallpapers"
     private const val FOLLOW = "follow"
     private const val FALLBACK = "hills_dusk"
+
+    /** SuperHome's own pictures, in the order the picker shows them: key, then the Chinese and English names. */
+    private val stills = listOf(
+        Triple("alpine", "雪山 · 落日", "Snow Peaks, Sunset"),
+        Triple("coast", "海岸 · 暮光", "Coast, Dusk"),
+        Triple("forest", "山林 · 星夜", "Forest Lake, Night"),
+    )
 
     private lateinit var app: Context
     private lateinit var prefs: SharedPreferences
     private lateinit var dailyDir: File
     private lateinit var photoDir: File
+    private lateinit var stillDir: File
 
     var selectedId = LATEST_DAILY; private set
     @Volatile var items: List<Wallpaper> = emptyList(); private set
@@ -66,6 +77,8 @@ object Wallpapers {
         prefs = app.getSharedPreferences("wallpaper", Context.MODE_PRIVATE)
         dailyDir = File(app.filesDir, "daily").apply { mkdirs() }
         photoDir = File(app.filesDir, "photos").apply { mkdirs() }
+        stillDir = File(app.filesDir, "stills").apply { mkdirs() }
+        unpackStills()
         selectedId = prefs.getString("selected", LATEST_DAILY) ?: LATEST_DAILY
         chosenScreensaver = when (val key = prefs.getString("screensaver", null)) {
             null, FOLLOW -> null
@@ -104,16 +117,35 @@ object Wallpapers {
     fun rebuildList() {
         val zh = Locale.getDefault().language == "zh"
         val daily = readDailyIndex().map { Wallpaper("daily:${it.first}", WallpaperKind.Daily, it.second, it.third) }
+        val bundled = stills.map { Wallpaper(STILL_PREFIX + it.first, WallpaperKind.Still, if (zh) it.second else it.third) }
         val builtins = Gradients.presets.map { Wallpaper("grad:${it.key}", WallpaperKind.Builtin, if (zh) it.nameZh else it.nameEn) }
         val photos = (photoDir.listFiles { f -> f.name.endsWith(".jpg") } ?: emptyArray())
             .sortedByDescending { it.lastModified() }
             .map { Wallpaper("photo:${it.name.removeSuffix(".jpg")}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
-        items = daily + builtins + photos
+        items = daily + bundled + builtins + photos
+    }
+
+    /**
+     * Copies the bundled pictures out of the APK, so [fileFor] has a real file to decode: the
+     * decoder reads a file, not a stream. Only a missing one is copied, and a copy lands under its
+     * own name at the end, so a killed first run leaves no half picture behind.
+     */
+    private fun unpackStills() {
+        for ((key, _, _) in stills) {
+            val out = File(stillDir, "$key.jpg")
+            if (out.length() > 0L) continue
+            runCatching {
+                val tmp = File(out.path + ".part")
+                app.assets.open("$STILL_ASSETS/$key.jpg").use { input -> FileOutputStream(tmp).use { input.copyTo(it) } }
+                if (!tmp.renameTo(out)) tmp.delete()
+            }.onFailure { Log.w(TAG, "bundled wallpaper «$key» unavailable", it) }
+        }
     }
 
     private fun fileFor(w: Wallpaper): File? = when (w.kind) {
         WallpaperKind.Daily -> File(dailyDir, w.id.removePrefix("daily:") + ".jpg")
         WallpaperKind.Photo -> File(photoDir, w.id.removePrefix("photo:") + ".jpg")
+        WallpaperKind.Still -> File(stillDir, w.id.removePrefix(STILL_PREFIX) + ".jpg")
         else -> null
     }
 
@@ -134,10 +166,11 @@ object Wallpapers {
         return b
     }
 
-    /** The photo screensaver's pictures: the owner's photos when there are any, else the daily ones, else the built-ins (issue #27). */
+    /** The photo screensaver's pictures: the owner's photos when there are any, else the daily ones, else SuperHome's own pictures, else the built-ins (issue #27). */
     fun saverPictures(): List<Wallpaper> {
         val photos = items.filter { it.kind == WallpaperKind.Photo }.ifEmpty { items.filter { it.kind == WallpaperKind.Daily } }
-        return photos.ifEmpty { items.filter { it.kind == WallpaperKind.Builtin } }.shuffled()
+        return photos.ifEmpty { items.filter { it.kind == WallpaperKind.Still } }
+            .ifEmpty { items.filter { it.kind == WallpaperKind.Builtin } }.shuffled()
     }
 
     // ---- the backdrop ----

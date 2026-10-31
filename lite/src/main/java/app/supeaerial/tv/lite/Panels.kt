@@ -623,9 +623,9 @@ class Personalize(
     // ---- wallpaper cards ----
 
     /**
-     * Every wallpaper in one row, in the full app's order: Bing's photo of the day, the owner's
-     * photos (with "every day another" from two up), a few of the built-in pictures. Past daily
-     * photos and the other built-ins only when one of them is the current choice.
+     * Every wallpaper in one row, in the full app's order: Bing's photo of the day, SuperHome's own
+     * pictures, the owner's photos (with "every day another" from two up), a few of the built-in
+     * pictures. Past daily photos and the other built-ins only when one of them is the current choice.
      */
     private fun cards(): List<Wallpaper> {
         val items = Wallpapers.items
@@ -633,6 +633,7 @@ class Personalize(
         return buildList {
             if (items.any { it.kind == WallpaperKind.Daily }) add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, string(R.string.wp_daily_latest)))
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected })
+            addAll(items.filter { it.kind == WallpaperKind.Still })
             val photos = items.filter { it.kind == WallpaperKind.Photo }
             if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, string(R.string.wp_photos_rotate)))
             addAll(photos)

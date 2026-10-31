@@ -70,7 +70,8 @@ object LiteSettings {
     var homePlate = false; private set
     var showAllNames = true; private set
     var clockRight = false; private set
-    var largeClock = false; private set
+    /** SuperHome's factory choice: the big clock across the top rather than one small line. */
+    var largeClock = true; private set
     var showWeather = true; private set
     var screensaverClock = true; private set
     var backStartsScreensaver = true; private set
@@ -104,7 +105,7 @@ object LiteSettings {
         homePlate = prefs.getBoolean("home_plate", false)
         showAllNames = prefs.getBoolean("show_all_names", true)
         clockRight = prefs.getBoolean("clock_right", false)
-        largeClock = prefs.getBoolean("large_clock", false)
+        largeClock = prefs.getBoolean("large_clock", true)
         showWeather = prefs.getBoolean("show_weather", true)
         screensaverClock = prefs.getBoolean("screensaver_clock", true)
         backStartsScreensaver = prefs.getBoolean("back_starts_screensaver", true)
