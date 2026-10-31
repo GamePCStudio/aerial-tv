@@ -28,7 +28,9 @@ adb push superaerialappname.txt /sdcard/Android/data/app.supeaerial.tv.lite/file
 
 还有两份你不用手放：云端下载的一份（存在 App 内部 `files/super/appname.txt`，断网也留着）、打包进 APK 的一份（`lite/src/main/assets/superaerialappname.txt`，对应仓库里的 [site/superaerial/superaerialappname.txt](site/superaerial/superaerialappname.txt)）。
 
-**云端缺省地址是 `https://800915.xyz/superaerial/superaerialappname.txt`**（代码里只有 `SuperNames.CLOUD` 这一处）。这份清单的主副本在仓库的 `site/superaerial/`，但 `tools/deploy-site.sh` 发的是 `aerial.qust.me` 那个 Cloudflare 站点，**不会替你传到 800915.xyz**——那一台的 `/superaerial/` 目录要你自己上传，没上传之前这一层是 404，电视只靠本地文件和 APK 内置那份（不会报错，12 小时后再查一次）。
+**云端缺省地址是 `https://800915.xyz/superaerial/superaerialappname.txt`**（代码里只有 `SuperNames.CLOUD` 这一处）。这份清单的主副本在仓库的 `site/superaerial/`，但 `tools/deploy-site.sh` 发的是 `aerial.qust.me` 那个 Cloudflare 站点，**不会替你传到 800915.xyz**——那一台的 `/superaerial/` 目录要你自己上传。
+
+> **判断传没传上去别看 HTTP 码**：2026-10-31 实测这个站对任何路径都回 `200` + 一段空壳 HTML（SPA 兜底），不报 404。用 `curl -s https://800915.xyz/superaerial/superaerialappname.txt | head -1` 看**首行是不是 `name `** 才算数。电视收到那种 HTML 会解析出零条，走「这不是清单」的保护、保留已有那份，不会把好数据冲掉，12 小时后再试一次。
 
 ### 四层优先级
 
