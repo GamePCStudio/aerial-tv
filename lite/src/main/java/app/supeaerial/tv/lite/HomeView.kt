@@ -543,8 +543,11 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
          * from a wide row, which sets its gap from the table and lets the tile fill the row. Six and
          * seven keep the tile the 88% rule had them, so only their gaps grow. Five a row is off the
          * menu by his word: the shape offers six, seven and eight.
+         *
+         * The tile of the eight stays the 150 px he set, so the gap is what gives: at this distance it
+         * lands on 81 px, near enough the 80 px he first asked for.
          */
-        private const val SQUARE_MARGIN = 32.5f
+        private const val SQUARE_MARGIN = 37.5f
         private const val SQUARE_TILE_8 = 75f
         private val SQUARE_TILE get() = if (COLS == 8) SQUARE_TILE_8
             else (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS * 0.88f
@@ -575,14 +578,16 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         const val PLATE_NAME_ROOM = 28f
         /**
          * Top of the large clock: the date's capitals, just under the status pill. SuperHome puts it
-         * twenty-two and a half units above Aerial's 80, so the clock and the weather under it sit
-         * 45 px higher on a 1080p TV than the full app drew them.
+         * thirty-five units above Aerial's 80, so the clock and the weather under it sit 70 px higher
+         * on a 1080p TV than the full app drew them.
          */
-        const val CLOCK_Y = 57.5f
-        /** The full app's ShelfRowGap, RowNameRoom and LargeClockHeight. */
+        const val CLOCK_Y = 45f
+        /** The whole large clock at three quarters: every size, gap and shadow in [ClockView]'s large draw. */
+        const val CLOCK_SCALE = 0.75f
+        /** The full app's ShelfRowGap, RowNameRoom and LargeClockHeight, the last of them shrunk with the clock. */
         const val SHELF_ROW_GAP = 30f
         const val ROW_NAME_ROOM = 50f
-        const val LARGE_CLOCK_H = 152f
+        val LARGE_CLOCK_H = 152f * CLOCK_SCALE
         private val EASE = DecelerateInterpolator(1.6f)
 
         /** An app's name under its tile: Type.Headline, centred, with the full app's soft shadow. */

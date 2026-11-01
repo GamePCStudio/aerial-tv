@@ -71,7 +71,7 @@ class ClockView(context: Context) : View(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // The small clock beside the pill takes only its own width.
         val w = if (alignEnd && !large) smallWidth().toInt() + Ui.pxi(4f) else Ui.pxi(560f)
-        setMeasuredDimension(w, Ui.pxi(if (large) 200f else 34f))
+        setMeasuredDimension(w, Ui.pxi(if (large) 200f * HomeView.CLOCK_SCALE else 34f))
     }
 
     private fun smallWeatherText(w: WeatherLine) = listOfNotNull(w.place?.takeIf { it.length <= 12 }, "${w.celsius}°").joinToString(" ")
@@ -84,17 +84,24 @@ class ClockView(context: Context) : View(context) {
     }
 
     // Large clock (ShelfClock): Type.ClockDate, Type.Clock, Type.ClockDetail; shadow 0.28 black, 2 down, 18 px blur at 1080p.
-    private val datePaint = Ui.text(19f, 600, display = true).shadow(0x47000000, 9f, 1f)
-    private val dateDim = Ui.text(19f, 500, 0xB8FFFFFF.toInt(), display = true).shadow(0x47000000, 9f, 1f)
-    private val bigPaint = Ui.text(104f, 700, display = true).shadow(0x47000000, 9f, 1f)
-    private val detailPaint = Ui.text(16f, 600).shadow(0x47000000, 9f, 1f)
-    private val detailDim = Ui.text(16f, 500, 0xB8FFFFFF.toInt()).shadow(0x47000000, 9f, 1f)
+    // SuperHome draws the whole block at HomeView.CLOCK_SCALE, so the sizes, the gaps and the shadow shrink together.
+    private val datePaint = largeText(19f, 600, display = true)
+    private val dateDim = largeText(19f, 500, 0xB8FFFFFF.toInt(), display = true)
+    private val bigPaint = largeText(104f, 700, display = true)
+    private val detailPaint = largeText(16f, 600)
+    private val detailDim = largeText(16f, 500, 0xB8FFFFFF.toInt())
     // Small clock (CornerClock): Type.SmallClock at Title size, 92% white; Type.Headline beside it.
     private val smallPaint = Ui.text(19f, 600, 0xEBFFFFFF.toInt()).shadow(0x80000000.toInt(), 4f, 0f)
     private val smallWeather = Ui.text(15f, 600, 0xEBFFFFFF.toInt()).shadow(0x80000000.toInt(), 4f, 0f)
     private val glyphPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
     private fun Paint.shadow(color: Int, blur: Float, dy: Float) = apply { setShadowLayer(Ui.px(blur), 0f, Ui.px(dy), color) }
+
+    private fun largeText(size: Float, weight: Int, color: Int = Ui.WHITE, display: Boolean = false) =
+        Ui.text(size * HomeView.CLOCK_SCALE, weight, color, display).shadow(0x47000000, 9f * HomeView.CLOCK_SCALE, 1f * HomeView.CLOCK_SCALE)
+
+    /** A length inside the large clock — a gap, a nudge — shrunk with the block. */
+    private fun largeU(v: Float) = Ui.px(v * HomeView.CLOCK_SCALE)
 
     override fun onDraw(canvas: Canvas) {
         if (large) drawLarge(canvas) else drawSmall(canvas)
@@ -103,7 +110,7 @@ class ClockView(context: Context) : View(context) {
     private fun drawLarge(c: Canvas) {
         var y = 0f
         // The date: its capitals' top at the view's top.
-        y += Ui.px(19f * Ui.CAP_HEIGHT)
+        y += largeU(19f * Ui.CAP_HEIGHT)
         // Where a line of width [w] starts: the left edge, or flush right.
         fun start(w: Float) = if (alignEnd) width - w else 0f
         val split = lunarStart
@@ -117,18 +124,18 @@ class ClockView(context: Context) : View(context) {
             Ui.draw(c, date.substring(split), x0 + headW, y, dateDim, -0.005f)
         }
         // The time, 16 under the date's baseline to its capitals.
-        y += Ui.px(16f + 104f * Ui.CAP_HEIGHT)
-        Ui.draw(c, time, if (alignEnd) start(Ui.width(time, bigPaint, -0.04f)) + Ui.px(4f) else -Ui.px(4f), y, bigPaint, -0.04f)
+        y += largeU(16f + 104f * Ui.CAP_HEIGHT)
+        Ui.draw(c, time, if (alignEnd) start(Ui.width(time, bigPaint, -0.04f)) + largeU(4f) else -largeU(4f), y, bigPaint, -0.04f)
         val w = weather ?: return
         // The weather, 18 under the time.
-        y += Ui.px(18f + 16f * Ui.CAP_HEIGHT)
-        val g = Ui.pxi(18f)
+        y += largeU(18f + 16f * Ui.CAP_HEIGHT)
+        val g = Ui.pxi(18f * HomeView.CLOCK_SCALE)
         val temp = "${w.celsius}°"
         val rest = listOfNotNull(w.place?.takeIf { it.length <= 12 }, w.detail.ifEmpty { null }).joinToString(" · ")
         val restText = if (rest.isNotEmpty()) "  $rest" else ""
-        val x0 = start(g + Ui.px(7f) + detailPaint.measureText(temp) + detailDim.measureText(restText))
-        c.drawBitmap(Glyphs.image(w.glyph, g, Ui.WHITE), x0, y - Ui.px(16f * Ui.CAP_HEIGHT / 2) - g / 2f, glyphPaint)
-        val x = x0 + g + Ui.px(7f)
+        val x0 = start(g + largeU(7f) + detailPaint.measureText(temp) + detailDim.measureText(restText))
+        c.drawBitmap(Glyphs.image(w.glyph, g, Ui.WHITE), x0, y - largeU(16f * Ui.CAP_HEIGHT / 2) - g / 2f, glyphPaint)
+        val x = x0 + g + largeU(7f)
         Ui.draw(c, temp, x, y, detailPaint)
         if (restText.isNotEmpty()) Ui.draw(c, restText, x + detailPaint.measureText(temp), y, detailDim)
     }

@@ -25,3 +25,4 @@
 # 完整写法与踩坑见仓库里的 superaerialappname填写说明.md。
 
 name com.hgtv.star,红果短剧TV
+name com.mytvb,哔哩哔哩TV

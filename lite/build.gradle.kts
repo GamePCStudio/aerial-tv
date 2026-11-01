@@ -21,8 +21,8 @@ android {
         minSdk = 14
         targetSdk = 34
         // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.13.
-        versionCode = 107
-        versionName = "1.6"
+        versionCode = 108
+        versionName = "1.7"
     }
 
     // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);
