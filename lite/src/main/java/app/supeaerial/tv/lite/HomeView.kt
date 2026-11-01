@@ -535,19 +535,25 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         /** Apps a row, from Personalize; the sizes below follow it, as the full app's GridMetrics. */
         val COLS get() = LiteSettings.homeColumns
         const val MARGIN = 56f
-        /** The gap of the table SuperHome shipped with; [SQUARE_GAP] is added to it for squares. */
+        /** The gap of the table SuperHome shipped with, for wide tiles. */
         private val GAP_TABLE get() = when (COLS) { 4 -> 34f; 6 -> 24f; 7 -> 22f; 8 -> 20f; else -> 28f }
-        private const val SQUARE_GAP = 5f
-        /** SuperHome: squares breathe five units (ten pixels at 1080p) further apart than the table had them. */
-        val GAP get() = GAP_TABLE + if (LiteSettings.iconShape.square) SQUARE_GAP else 0f
         /**
-         * The tile's width: a row solved from [GAP_TABLE] so it spans the canvas, as the full app lays
-         * it, and then — SuperHome's ask — squares taken back to 88% of that. The room the smaller
-         * squares leave over goes to both ends of the row equally, in [INSET].
+         * SuperHome's squares: the owner set the side distance, and the tile of the eight he ships
+         * with, so those are the given numbers and the gap takes what is left — the other way round
+         * from a wide row, which sets its gap from the table and lets the tile fill the row. Five to
+         * seven keep the tile the 88% rule had them, so only their gaps grow.
          */
-        val TILE_W get() = (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS * if (LiteSettings.iconShape.square) 0.88f else 1f
-        /** Where a row begins on the left: [MARGIN], pushed in by half the room the row leaves over. */
-        val INSET get() = MARGIN + maxOf(0f, (960f - 2 * MARGIN - (COLS * TILE_W + (COLS - 1) * GAP)) / 2f)
+        private const val SQUARE_MARGIN = 25f
+        private const val SQUARE_TILE_8 = 75f
+        private val SQUARE_TILE get() = if (COLS == 8) SQUARE_TILE_8
+            else (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS * 0.88f
+        private val SQUARE_GAP get() = (960f - 2 * SQUARE_MARGIN - COLS * SQUARE_TILE) / (COLS - 1)
+        private val SIDE get() = if (LiteSettings.iconShape.square) SQUARE_MARGIN else MARGIN
+        val GAP get() = if (LiteSettings.iconShape.square) SQUARE_GAP else GAP_TABLE
+        val TILE_W get() = if (LiteSettings.iconShape.square) SQUARE_TILE
+            else (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS
+        /** Where a row begins on the left: the side distance, since the row is solved to fill the canvas. */
+        val INSET get() = SIDE
         /** SuperHome: a square tile is the app's own icon, so its height is its width; wide keeps Aerial's 16:9. */
         val TILE_H get() = if (LiteSettings.iconShape.square) TILE_W else TILE_W * 9 / 16
         val PITCH get() = TILE_H + 50f
