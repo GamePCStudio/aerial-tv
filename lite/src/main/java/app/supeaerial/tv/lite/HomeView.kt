@@ -242,7 +242,7 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         showFocus(animate = false)
     }
 
-    private fun x(i: Int) = MARGIN + (i % COLS) * (TILE_W + GAP)
+    private fun x(i: Int) = INSET + (i % COLS) * (TILE_W + GAP)
 
     /** A row's top; below the top row, past the room for names on the plate while on the shelf. */
     private fun y(i: Int) = when {
@@ -465,7 +465,7 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         var glass: Bitmap? = null
         private var baked: Bitmap? = null
         private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        private val left = Ui.px(MARGIN - PLATE_PAD_H)
+        private val left get() = Ui.px(INSET - PLATE_PAD_H)
         private var top = 0f
         private var h = 0f
 
@@ -480,7 +480,7 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         fun rebake() {
             val g = glass ?: run { baked = null; invalidate(); return }
             if (h <= 0f) return
-            val at = RectF(left, Ui.px(top), Ui.px(MARGIN + (COLS - 1) * (TILE_W + GAP) + TILE_W + PLATE_PAD_H), Ui.px(top + h))
+            val at = RectF(left, Ui.px(top), Ui.px(INSET + (COLS - 1) * (TILE_W + GAP) + TILE_W + PLATE_PAD_H), Ui.px(top + h))
             baked = Shapes.glass(g, Ui.screenW, Ui.screenH, at, Ui.px(32f), Ui.px(1.2f), PLATE_TINT)
             invalidate()
         }
@@ -514,7 +514,7 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
             val w = width - 2 * ext
             val h = height - 2 * ext
             dst.set(ext, ext, ext + w, ext + h)
-            if (lifted && shadow) {
+            if (lifted && shadow && entry.opaque) {
                 val s = Shapes.shadow(w, h, Ui.px(CORNER_NOW), Ui.px(14f))
                 val drop = Ui.px(12f)
                 tmp.set(ext - s.ext, ext - s.ext + drop, ext + w + s.ext, ext + h + s.ext + drop)
@@ -535,8 +535,19 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         /** Apps a row, from Personalize; the sizes below follow it, as the full app's GridMetrics. */
         val COLS get() = LiteSettings.homeColumns
         const val MARGIN = 56f
-        val GAP get() = when (COLS) { 4 -> 34f; 6 -> 24f; 7 -> 22f; 8 -> 20f; else -> 28f }
-        val TILE_W get() = (960f - 2 * MARGIN - (COLS - 1) * GAP) / COLS
+        /** The gap of the table SuperHome shipped with; [SQUARE_GAP] is added to it for squares. */
+        private val GAP_TABLE get() = when (COLS) { 4 -> 34f; 6 -> 24f; 7 -> 22f; 8 -> 20f; else -> 28f }
+        private const val SQUARE_GAP = 5f
+        /** SuperHome: squares breathe five units (ten pixels at 1080p) further apart than the table had them. */
+        val GAP get() = GAP_TABLE + if (LiteSettings.iconShape.square) SQUARE_GAP else 0f
+        /**
+         * The tile's width: a row solved from [GAP_TABLE] so it spans the canvas, as the full app lays
+         * it, and then — SuperHome's ask — squares taken back to 88% of that. The room the smaller
+         * squares leave over goes to both ends of the row equally, in [INSET].
+         */
+        val TILE_W get() = (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS * if (LiteSettings.iconShape.square) 0.88f else 1f
+        /** Where a row begins on the left: [MARGIN], pushed in by half the room the row leaves over. */
+        val INSET get() = MARGIN + maxOf(0f, (960f - 2 * MARGIN - (COLS * TILE_W + (COLS - 1) * GAP)) / 2f)
         /** SuperHome: a square tile is the app's own icon, so its height is its width; wide keeps Aerial's 16:9. */
         val TILE_H get() = if (LiteSettings.iconShape.square) TILE_W else TILE_W * 9 / 16
         val PITCH get() = TILE_H + 50f
@@ -555,8 +566,11 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         const val PLATE_MARGIN_BOTTOM = 30f
         /** The plate grows by this under the top row to hold every name. */
         const val PLATE_NAME_ROOM = 28f
-        /** Top of the large clock: the date's capitals, just under the status pill. */
-        const val CLOCK_Y = 80f
+        /**
+         * Top of the large clock: the date's capitals, just under the status pill. SuperHome puts it
+         * ten units above Aerial's 80, so the clock and the weather under it sit 20 px higher on a 1080p TV.
+         */
+        const val CLOCK_Y = 70f
         /** The full app's ShelfRowGap, RowNameRoom and LargeClockHeight. */
         const val SHELF_ROW_GAP = 30f
         const val ROW_NAME_ROOM = 50f
@@ -566,7 +580,8 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         /** An app's name under its tile: Type.Headline, centred, with the full app's soft shadow. */
         fun nameView(context: Context) = TextView(context).apply {
             setTextColor(Ui.WHITE)
-            textPx(15f)
+            // SuperHome: 14 units, one step under the panel text, so a row of eight names has room to breathe.
+            textPx(14f)
             typeface = Ui.font(600)
             gravity = Gravity.CENTER_HORIZONTAL
             setSingleLine()

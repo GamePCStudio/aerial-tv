@@ -47,8 +47,8 @@ class FolderView(
         }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         content.clipChildren = false
         addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        content.addView(context.label(name, 26f, 600, display = true, spacingEm = -0.015f), LayoutParams(Ui.pxi(960f - 2 * HomeView.MARGIN), LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = Ui.pxi(HomeView.MARGIN); topMargin = Ui.pxi(56f)
+        content.addView(context.label(name, 26f, 600, display = true, spacingEm = -0.015f), LayoutParams(Ui.pxi(960f - 2 * HomeView.INSET), LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = Ui.pxi(HomeView.INSET); topMargin = Ui.pxi(56f)
         })
         setApps(apps)
         if (LiteSettings.full(isHardwareAccelerated)) {
@@ -80,7 +80,7 @@ class FolderView(
         showFocus(animate = false)
     }
 
-    private fun x(i: Int) = HomeView.MARGIN + (i % HomeView.COLS) * (HomeView.TILE_W + HomeView.GAP)
+    private fun x(i: Int) = HomeView.INSET + (i % HomeView.COLS) * (HomeView.TILE_W + HomeView.GAP)
     private fun y(i: Int) = TOP + (i / HomeView.COLS) * HomeView.PITCH
 
     private fun showFocus(animate: Boolean) {

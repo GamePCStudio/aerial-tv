@@ -21,8 +21,8 @@ android {
         minSdk = 14
         targetSdk = 34
         // This branch restarts versioning: 1xx for the SuperHome line.
-        versionCode = 103
-        versionName = "1.2"
+        versionCode = 104
+        versionName = "1.3"
     }
 
     // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);

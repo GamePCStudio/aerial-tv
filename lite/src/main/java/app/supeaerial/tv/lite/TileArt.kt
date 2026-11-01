@@ -151,13 +151,14 @@ object TileFactory {
     /**
      * SuperHome's square tile: the app's own icon over the whole side, the way a phone's launcher
      * draws it — Aerial's gradient, its recolored logo, the icon library's picture and the app's TV
-     * banner all stay out of it. The dark plate only shows through an icon with transparent pixels.
+     * banner all stay out of it. Nothing is laid under it: an icon with see-through margins (the
+     * AOSP Settings gear is 37% transparent) keeps them, so the wallpaper shows through it like it
+     * does on a phone. [isSolid] tells Home which tiles are the ones that fill their square.
      */
     fun square(icon: Drawable): Bitmap {
         val s = W
         val out = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
         Canvas(out).apply {
-            drawColor(GRAPHITE_BOTTOM)
             icon.setBounds(0, 0, s, s)
             icon.draw(this)
         }
@@ -172,10 +173,27 @@ object TileFactory {
         val y = (src.height - side) / 2
         val out = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
         Canvas(out).apply {
-            drawColor(GRAPHITE_BOTTOM)
             drawBitmap(src, Rect(x, y, x + side, y + side), Rect(0, 0, s, s), Paint(Paint.FILTER_BITMAP_FLAG))
         }
         return out
+    }
+
+    /**
+     * Whether this art fills its whole square, judged on a 16×16 grid of its pixels: nine tenths of
+     * them opaque makes a solid tile. The grid is wide enough to catch an icon whose middle is solid
+     * but whose corners see through, which the corners of a sampled square would not.
+     */
+    fun isSolid(art: Bitmap): Boolean {
+        val n = 16
+        var solid = 0
+        for (j in 0 until n) {
+            val y = art.height * (2 * j + 1) / (2 * n)
+            for (i in 0 until n) {
+                val x = art.width * (2 * i + 1) / (2 * n)
+                if (art.getPixel(x, y) ushr 24 >= 250) solid++
+            }
+        }
+        return solid * 100 >= n * n * 90
     }
 
     /** SuperHome's stand-in for a square tile whose icon is not drawn yet: the same icon, smaller. */

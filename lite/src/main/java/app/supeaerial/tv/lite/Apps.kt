@@ -30,9 +30,15 @@ class AppEntry(
     val placeholder: Boolean = false,
     /** Set for a folder's tile; [key] is then the folder's key. */
     val folder: Folder? = null,
+    /**
+     * False when the tile's own picture lets the wallpaper through, as an icon with see-through
+     * margins does. Home then lifts the tile without the dark shadow behind it, which would show
+     * through the gaps and read as a black plate.
+     */
+    val opaque: Boolean = true,
 ) {
     /** The same app under another name (a name typed on the phone page, AppNames). */
-    fun named(name: String) = AppEntry(key, name, component, leanback, removable, tile, placeholder, folder)
+    fun named(name: String) = AppEntry(key, name, component, leanback, removable, tile, placeholder, folder, opaque)
 
     fun launchIntent(): Intent = Intent(Intent.ACTION_MAIN)
         .addCategory(if (leanback) CATEGORY_LEANBACK_LAUNCHER else Intent.CATEGORY_LAUNCHER)
@@ -201,13 +207,16 @@ object AppCatalog {
         // SuperHome: the shape is in the key, so switching between the wide art and the app's own
         // square icon makes each tile again instead of showing one inside the other's outline.
         val shape = if (LiteSettings.iconShape.square) "sq" else "wd"
-        val key = "v4|$stamp|$shape|$fw|$fh"
+        // v5: a square tile now keeps its icon's own transparency, so every tile baked under v4 is made again.
+        val key = "v5|$stamp|$shape|$fw|$fh"
         val file = File(dir, "$pkg.png")
         val cached = index.getString(pkg, null)
         if (cached != null && cached.startsWith("$key|") && file.exists()) {
             BitmapFactory.decodeFile(file.path)?.let {
-                val label = if (stockHome) homeLabel else cached.substring(key.length + 1)
-                return AppEntry(pkg, label, component, leanback, !system, it)
+                // What follows the key is "s" or "t" for a solid or a see-through tile, then the label.
+                val rest = cached.substring(key.length + 1)
+                return AppEntry(pkg, if (stockHome) homeLabel else rest.substring(2), component, leanback, !system, it,
+                    opaque = rest[0] == 's')
             }
         }
         val label = runCatching { info.loadLabel(pm).toString().trim() }.getOrDefault("").ifEmpty { pkg }
@@ -215,9 +224,10 @@ object AppCatalog {
         if (quick) {
             val icon = runCatching { info.loadIcon(pm) }.getOrNull() ?: pm.defaultActivityIcon
             val art = if (square) TileFactory.quickSquare(icon) else TileFactory.quick(icon)
-            val face = Shapes.face(art, fw, fh, Ui.px(HomeView.CORNER_NOW * HomeView.FOCUS_SCALE), Ui.px(0.5f * HomeView.FOCUS_SCALE))
+            val solid = !square || TileFactory.isSolid(art)
+            val face = Shapes.face(art, fw, fh, Ui.px(HomeView.CORNER_NOW * HomeView.FOCUS_SCALE), rimWidth(solid))
             art.recycle()
-            return AppEntry(pkg, if (stockHome) homeLabel else label, component, leanback, !system, face, placeholder = true)
+            return AppEntry(pkg, if (stockHome) homeLabel else label, component, leanback, !system, face, placeholder = true, opaque = solid)
         }
         // In square mode the tile is the app's own icon, so none of the art Aerial would draw on a
         // wide tile is even loaded: on a 4.x CPU a banner and a library picture decode for nothing.
@@ -249,14 +259,18 @@ object AppCatalog {
         }.recoverCatching {
             if (square) TileFactory.square(pm.defaultActivityIcon) else TileFactory.fromIcon(pm.defaultActivityIcon, null)
         }.getOrThrow()
-        val face = Shapes.face(art, fw, fh, Ui.px(HomeView.CORNER_NOW * HomeView.FOCUS_SCALE), Ui.px(0.5f * HomeView.FOCUS_SCALE))
+        val solid = !square || TileFactory.isSolid(art)
+        val face = Shapes.face(art, fw, fh, Ui.px(HomeView.CORNER_NOW * HomeView.FOCUS_SCALE), rimWidth(solid))
         art.recycle()
         runCatching {
             FileOutputStream(file).use { face.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            index.edit().putString(pkg, "$key|$label").apply()
+            index.edit().putString(pkg, "$key|${if (solid) "s" else "t"}|$label").apply()
         }
-        return AppEntry(pkg, if (stockHome) homeLabel else label, component, leanback, !system, face)
+        return AppEntry(pkg, if (stockHome) homeLabel else label, component, leanback, !system, face, opaque = solid)
     }
+
+    /** The tile's hairline rim: a picture that lets the wallpaper through needs no plate to outline. */
+    private fun rimWidth(solid: Boolean) = if (solid) Ui.px(0.5f * HomeView.FOCUS_SCALE) else 0f
 
     /**
      * The densest bucket the app ships: loadIcon picks the screen's, 48 px on a 160 dpi TV, soft on
