@@ -56,6 +56,7 @@ import app.orchard.tv.apps.StandIn
 import app.orchard.tv.apps.TileArtFactory
 import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.guard.HomeGuardService
+import app.orchard.tv.ui.home.FilmAfterInput
 import app.orchard.tv.ui.home.HomeScreen
 import app.orchard.tv.ui.home.AerialStart
 import app.orchard.tv.ui.home.LiveFilm
@@ -455,6 +456,9 @@ class MainActivity : ComponentActivity() {
     private var draws = 0
     private var keysLogged = 0
 
+    /** The press whose leftover volume repeats were last dropped; see dispatchKeyEvent. */
+    private var staleVolumeDown = Long.MIN_VALUE
+
     private fun logWindow() {
         val m = resources.displayMetrics
         val modes = if (Build.VERSION.SDK_INT >= 23) display()?.let { d ->
@@ -695,6 +699,18 @@ class MainActivity : ComponentActivity() {
             if (event.repeatCount > 0) return true
             dreamWokeKey = -1 // a new press of the same key
         }
+        // A volume key repeating in Aerial after it came up at the guard's filter: Coocaa's lift
+        // never got here, and every repeat was a step to 0 or 100 (see HomeGuardService.volumeKeyCameUp).
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 &&
+            (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
+            HomeGuardService.volumeKeyCameUp(event.keyCode, event.downTime)
+        ) {
+            if (event.downTime != staleVolumeDown) {
+                staleVolumeDown = event.downTime
+                DiagLog.i("key ${KeyEvent.keyCodeToString(event.keyCode)} #${event.repeatCount} repeats after it came up at the guard; dropped")
+            }
+            return true
+        }
         if (keysLogged++ < 200) DiagLog.i("key ${KeyEvent.keyCodeToString(event.keyCode)} ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} #${event.repeatCount} at ${event.eventTime}, view focused ${currentFocus != null}")
         restartIdleTimer()
         // A lift whose press never reached Aerial: Coocaa C10's hotkey service takes the press of
@@ -853,6 +869,7 @@ class MainActivity : ComponentActivity() {
         // Back in front by any route (Home was handled in onNewIntent, which runs first; Back from
         // the app lands here directly), so the next Home press is a Home-on-Home again.
         openedAppSinceHome = false
+        leftForAnApp = false
         LaunchFallback.next()?.let { page ->
             // Only where the page truly closed: Hisense's network page (85E5N, MT9653, Android 11)
             // is a panel over Aerial, which resumes beneath it without window focus, and the next
@@ -874,6 +891,7 @@ class MainActivity : ComponentActivity() {
         vm.resumed = false
         Updates.onHomePaused()
         DiagLog.i("onPause")
+        leftForAnApp = openedAppSinceHome
         GuardSetup.setHomeInFront(this, false)
         if (HomeGuardService.onAerialPaused()) {
             // Only Home's bounce: the film plays on, unless Aerial is not back soon after all
@@ -933,12 +951,16 @@ class MainActivity : ComponentActivity() {
         // Xiaomi's settings tile can close at once like Control Center's button (issue #834).
         LaunchFallback.arm(if (app.packageName == "com.xiaomi.mitv.settings") SystemProbe.settingsFallbacks(this) else emptyList())
         try {
+            FilmAfterInput.noteOpened(this, app.launchIntent())
             if (HisenseSources.open(this, app.launchIntent())) return
             startActivity(settingsLaunchIntent(this, app.launchIntent()), options)
         } catch (e: Exception) {
             // XGIMI (GMUI): nothing answers the passthrough intent a source tile carries, so the tile
             // opens the source page of its settings service instead (issue #241).
             if (app.source != null && SystemProbe.openInputPicker(this)) return
+            // PatchWall's entry needs its permission whether or not the guard runs, and with the
+            // guard switched off its tile did nothing (MiTV-ANSP0, Android 9, issue #971).
+            if (e is SecurityException && startStockLauncher(app)) return
             Toast.makeText(this, getString(R.string.launch_failed, app.label), Toast.LENGTH_SHORT).show()
         }
     }
@@ -961,6 +983,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun open(intent: Intent) {
+        FilmAfterInput.noteOpened(this, intent)
         try {
             SystemProbe.startSettingsIntent(this, intent)
         } catch (e: Exception) {
@@ -1032,6 +1055,16 @@ class MainActivity : ComponentActivity() {
 
         private const val DREAM_FAILS_ON = "dream_fails_on"
         private const val DREAM_FAILS = "dream_fails"
+
+        /**
+         * Whether Aerial was last left for an app it opened itself, and has not been back since.
+         * BootReceiver leaves such an app in front: Xiaomi MiTV-ANTL0 (Android 5.1.1) sent
+         * BOOT_COMPLETED three minutes after Aerial had come up as Home, and Aerial then covered
+         * the live TV or Bilibili the user had opened from it, once per boot (issue #1024's log).
+         */
+        @Volatile
+        var leftForAnApp = false
+            private set
 
         /** Whether Home has been resumed in this process yet (BootOpen.dueAfterColdWake). */
         private var resumedInProcess = false
