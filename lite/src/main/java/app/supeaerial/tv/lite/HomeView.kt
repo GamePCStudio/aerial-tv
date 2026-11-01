@@ -540,10 +540,11 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         /**
          * SuperHome's squares: the owner set the side distance, and the tile of the eight he ships
          * with, so those are the given numbers and the gap takes what is left — the other way round
-         * from a wide row, which sets its gap from the table and lets the tile fill the row. Five to
-         * seven keep the tile the 88% rule had them, so only their gaps grow.
+         * from a wide row, which sets its gap from the table and lets the tile fill the row. Six and
+         * seven keep the tile the 88% rule had them, so only their gaps grow. Five a row is off the
+         * menu by his word: the shape offers six, seven and eight.
          */
-        private const val SQUARE_MARGIN = 25f
+        private const val SQUARE_MARGIN = 32.5f
         private const val SQUARE_TILE_8 = 75f
         private val SQUARE_TILE get() = if (COLS == 8) SQUARE_TILE_8
             else (960f - 2 * MARGIN - (COLS - 1) * GAP_TABLE) / COLS * 0.88f
@@ -574,9 +575,10 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         const val PLATE_NAME_ROOM = 28f
         /**
          * Top of the large clock: the date's capitals, just under the status pill. SuperHome puts it
-         * ten units above Aerial's 80, so the clock and the weather under it sit 20 px higher on a 1080p TV.
+         * twenty-two and a half units above Aerial's 80, so the clock and the weather under it sit
+         * 45 px higher on a 1080p TV than the full app drew them.
          */
-        const val CLOCK_Y = 70f
+        const val CLOCK_Y = 57.5f
         /** The full app's ShelfRowGap, RowNameRoom and LargeClockHeight. */
         const val SHELF_ROW_GAP = 30f
         const val ROW_NAME_ROOM = 50f

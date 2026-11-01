@@ -40,7 +40,7 @@ enum class Effects(val key: String) {
  * [DEFAULT] is the shape a TV starts on: SuperHome ships square icons, eight a row.
  */
 enum class IconShape(val key: String, val columns: IntRange, val defaultColumns: Int) {
-    Wide("wide", 4..6, 6), Square("square", 5..8, 8);
+    Wide("wide", 4..6, 6), Square("square", 6..8, 8);
 
     val square get() = this == Square
 
