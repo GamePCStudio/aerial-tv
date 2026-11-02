@@ -60,6 +60,10 @@ class HomeActivity : Activity(), HomeView.Host {
         Ui.init(this)
         TileFactory.useScreen()
         LiteSettings.init(this)
+        Kids.init(this)
+        Kids.onChange = ::kidsChanged
+        Kids.onNotice = { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+        kidsWas = Kids.active
         Wallpapers.init(this)
         AppNames.init(this)
         SuperNames.init(this)
@@ -95,6 +99,8 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     override fun onDestroy() {
+        Kids.onChange = {}
+        Kids.onNotice = {}
         unregisterReceiver(packages)
         unregisterReceiver(connectivity)
         hideSaver()
@@ -128,6 +134,7 @@ class HomeActivity : Activity(), HomeView.Host {
     override fun onResume() {
         super.onResume()
         resumed = true
+        Kids.homeInFront = true
         home.refreshClock()
         showNetwork()
         showWeather()
@@ -141,6 +148,7 @@ class HomeActivity : Activity(), HomeView.Host {
 
     override fun onPause() {
         resumed = false
+        Kids.homeInFront = false
         handler.removeCallbacks(idle)
         hideSaver()
         // Back on Home the PIN is asked again (the full app relocks when an app opens).
@@ -159,6 +167,7 @@ class HomeActivity : Activity(), HomeView.Host {
             hideSaver()
             closeAll()
             home.reset()
+            kidsChanged()
         }
     }
 
@@ -303,7 +312,10 @@ class HomeActivity : Activity(), HomeView.Host {
         }
         folderApps = arranged.folders
         hiddenApps = arranged.hidden
-        home.setApps(arranged.home)
+        // Every app Kids and Elders mode can show: Home's with each folder's in its place, then the hidden ones.
+        kidsCandidates = arranged.home.flatMap { e -> e.folder?.let { arranged.folders[it.id].orEmpty() } ?: listOf(e) } + arranged.hidden
+        if (Kids.enabled) Kids.notePackages(kidsCandidates.filter { it.key in Kids.allowed }.mapTo(HashSet()) { it.component.packageName })
+        home.setApps(if (Kids.active) Kids.allowed.mapNotNull { k -> kidsCandidates.firstOrNull { it.key == k } } else arranged.home)
         (panels.lastOrNull() as? FolderView)?.let { open ->
             val inside = folderApps[open.folderId]
             if (inside.isNullOrEmpty()) closePanel() else open.setApps(inside)
@@ -330,6 +342,8 @@ class HomeActivity : Activity(), HomeView.Host {
     // ---- HomeView.Host ----
 
     override fun launch(app: AppEntry) {
+        // Kids and Elders mode opens only its own tiles, and none while locked.
+        if (Kids.active && (app.key !in Kids.allowed || Kids.lock != null)) return
         // The TV's settings sit behind the parental PIN, as in the full app.
         if (LiteSettings.locked && isSettingsApp(app.component.packageName)) { whenUnlocked { launch(app) }; return }
         try {
@@ -373,7 +387,10 @@ class HomeActivity : Activity(), HomeView.Host {
         showPanel(FolderView(this, ::closePanel, f.id, f.name, inside, launch = ::launch, menu = { app, tile -> openMenu(app, tile) }), keepBelow = false)
     }
 
-    override fun openMenu(app: AppEntry, tile: android.view.View) = showMenu(app, tileRect(tile), MenuPage.Main)
+    override fun openMenu(app: AppEntry, tile: android.view.View) {
+        // Nothing to rearrange in Kids and Elders mode (#1013).
+        if (!Kids.active) showMenu(app, tileRect(tile), MenuPage.Main)
+    }
 
     private enum class MenuPage { Main, Folders, Rename }
 
@@ -486,6 +503,8 @@ class HomeActivity : Activity(), HomeView.Host {
             bootLabel = LiteSettings.bootApp?.let { pkg -> entry(pkg)?.label ?: pkg },
             clearBoot = { LiteSettings.chooseBootApp(null); showControlCenter(CcPage.Main) },
             noInputs = { Toast.makeText(this, getString(R.string.cc_no_inputs), Toast.LENGTH_SHORT).show() },
+            kidsLeave = { whenVerified { Kids.suspend(); closeAll() } },
+            kidsBack = { closeAll(); Kids.start() },
         ))
     }
 
@@ -504,8 +523,10 @@ class HomeActivity : Activity(), HomeView.Host {
             onSaverNow = { closeAll(); showSaver() },
             onPin = { on ->
                 if (on) showPanel(PinPad(this, ::closePanel, PinPad.Mode.Create) { closePanel(); refreshPersonalize() }, keepBelow = true)
-                else whenUnlocked { LiteSettings.choosePin(null); refreshPersonalize() }
+                // Kids mode cannot be left without a PIN: it goes with it.
+                else whenUnlocked { LiteSettings.choosePin(null); Kids.chooseEnabled(false); refreshPersonalize() }
             },
+            onKids = ::setUpKids,
         ))
     }
 
@@ -522,6 +543,50 @@ class HomeActivity : Activity(), HomeView.Host {
         })
     }
 
+    // ---- Kids and Elders mode ----
+
+    private var kidsCandidates: List<AppEntry> = emptyList()
+    private var kidsWas = false
+
+    /** The mode's setup, behind the PIN; a PIN is chosen first, since leaving the mode needs one. */
+    private fun setUpKids() {
+        if (!LiteSettings.pinSet) showPanel(PinPad(this, ::closePanel, PinPad.Mode.Create) { closePanel(); openKidsSetup() }, keepBelow = true)
+        else whenUnlocked(::openKidsSetup)
+    }
+
+    private fun openKidsSetup() {
+        closeAll()
+        showPanel(KidsSetup(this, { closeAll(); openPersonalize() }, kidsCandidates) {
+            if (!Kids.enabled) Kids.chooseEnabled(true)
+            closeAll()
+            Kids.start()
+        })
+    }
+
+    /** Asks for the PIN without unlocking the rest (PinPad.Mode.Verify), then runs [action]. */
+    private fun whenVerified(action: () -> Unit) {
+        showPanel(PinPad(this, ::closePanel, PinPad.Mode.Verify) { closePanel(); action() }, keepBelow = true)
+    }
+
+    /** Into or out of the mode, or its lock coming or going: Home and the lock follow. */
+    private fun kidsChanged() {
+        if (Kids.active != kidsWas) {
+            kidsWas = Kids.active
+            home.applySettings()
+            refaceIfResized()
+            arrange()
+            home.reset()
+        } else if (Kids.active) arrange()
+        val lock = if (Kids.active) Kids.lock else null
+        val shown = panels.firstOrNull { it is KidsLockSheet } as KidsLockSheet?
+        if (shown != null && shown.lock.logName == lock?.logName) return
+        shown?.let { panels.remove(it); root.removeView(it) }
+        if (lock == null) { redrawAllInSoftware(); return }
+        hideSaver()
+        closeAll()
+        showPanel(KidsLockSheet(this, lock, onParent = { right -> whenVerified(right) }, onLeave = { Kids.suspend() }), keepBelow = true)
+    }
+
     /** Runs [action] at once, or after the parental PIN when one is set (issue #10). */
     private fun whenUnlocked(action: () -> Unit) {
         if (!LiteSettings.locked) { action(); return }
@@ -534,6 +599,9 @@ class HomeActivity : Activity(), HomeView.Host {
      * Down in the grid the background is the plate's glass over the whole screen, as in the full app.
      * The swap fades over the window background (two full-screen draws only while it fades), then
      * the window background itself becomes the new picture. Without hardware acceleration it jumps.
+     * The old picture stays opaque under the new one fading in: cross-faded, both were half
+     * transparent halfway and a quarter of the black window showed through, a dark blink on every
+     * row change (Letv S40 Air, MStar, Android 4.3, issues #1118 #940; the reporter's analysis).
      */
     override fun inGrid(grid: Boolean) {
         if (inGrid == grid) return
@@ -542,7 +610,7 @@ class HomeActivity : Activity(), HomeView.Host {
         if (saver != null) return
         if (!LiteSettings.full(root.isHardwareAccelerated)) { window.setBackgroundDrawable(to); return }
         val from = (if (grid) backdrop else gridBackdrop) ?: run { window.setBackgroundDrawable(to); return }
-        val fade = android.graphics.drawable.TransitionDrawable(arrayOf(from, to)).apply { isCrossFadeEnabled = true }
+        val fade = android.graphics.drawable.TransitionDrawable(arrayOf(from, to))
         window.setBackgroundDrawable(fade)
         fade.startTransition(220)
         handler.postDelayed({ if (inGrid == grid && saver == null) window.setBackgroundDrawable(to) }, 260)
@@ -575,8 +643,9 @@ class HomeActivity : Activity(), HomeView.Host {
         redrawAllInSoftware()
     }
 
+    /** Every panel but Kids mode's lock, which only the mode itself takes away (kidsChanged). */
     private fun closeAll() {
-        while (panels.isNotEmpty()) closePanel()
+        while (panels.isNotEmpty() && panels.last() !is KidsLockSheet) closePanel()
     }
 
     /**
@@ -592,6 +661,9 @@ class HomeActivity : Activity(), HomeView.Host {
     private fun showSaver() {
         if (saver != null) return
         LiteSettings.relock()
+        // A parent who left Kids mode has walked away; a locked TV keeps its lock in sight.
+        Kids.rearm()
+        if (Kids.active && Kids.lock != null) return
         closeAll()
         val s = SaverView(this, Wallpapers.screensaver, proxy, wallpaperPicture)
         saver = s
@@ -647,6 +719,7 @@ class HomeActivity : Activity(), HomeView.Host {
      */
     private fun openBootApp() {
         val pkg = LiteSettings.bootApp ?: return
+        if (Kids.active && pkg !in Kids.allowed) return
         // Once per power-on, kept on disk: a firmware that stops Lite in the background made each
         // cold start back in it open the app again (the full app's issue #766, Coocaa).
         val prefs = getSharedPreferences("boot_open", MODE_PRIVATE)
@@ -711,15 +784,16 @@ class HomeActivity : Activity(), HomeView.Host {
             refaceIfResized()
             (panels.lastOrNull() as? Personalize)?.refreshChips()
         }
+        override fun kidsCandidates(): List<AppEntry> = kidsCandidates
         override fun weatherChanged() {
             showWeather()
             Weather.refreshIfStale({ work.execute(it) }, force = true) { handler.post { showWeather(); (panels.lastOrNull() as? Personalize)?.refreshChips() } }
         }
     }
 
-    private companion object {
-        const val TAG = "AerialLite"
-        const val SCREENSAVER_HOLD_MS = 4 * 60 * 60 * 1000L
+    companion object {
+        private const val TAG = "AerialLite"
+        private const val SCREENSAVER_HOLD_MS = 4 * 60 * 60 * 1000L
         /** The TVs' settings apps, kept behind the PIN (the full app's SystemProbe.isSettingsApp). */
         val SETTINGS_APPS = setOf("com.android.settings", "com.android.tv.settings", "com.xiaomi.mitv.settings", "com.tcl.settings", "com.haier.tv.menusetting", "com.pptv.setting")
     }

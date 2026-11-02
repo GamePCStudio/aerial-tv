@@ -60,15 +60,22 @@ object LiteSettings {
     private const val PREFS = "settings"
     private lateinit var prefs: SharedPreferences
 
-    var focusStyle = FocusStyle.HighContrast; private set
+    private var chosenFocusStyle = FocusStyle.HighContrast
+    /** As chosen; always the white frame in Elders mode (Kids), as in the full app. */
+    val focusStyle: FocusStyle get() = if (Kids.active && Kids.kind == KidsKind.Elders) FocusStyle.HighContrast else chosenFocusStyle
+    /** SuperHome's factory choice: two rows, not one. */
     var oneRowHome = false; private set
     var peekNextRow = true; private set
     /** SuperHome: an app's picture is Aerial's wide tile art, or the app's own square icon. */
     var iconShape = IconShape.DEFAULT; private set
-    /** Apps a row on Home and in folders; [IconShape.columns] bounds it and [IconShape.defaultColumns] is its default. */
-    var homeColumns = IconShape.DEFAULT.defaultColumns; private set
+    private var chosenColumns = IconShape.DEFAULT.defaultColumns
+    /** As chosen; [Kids.COLUMNS] in Kids and Elders mode, and the shape's own range in the setter. */
+    val homeColumns: Int get() = if (Kids.active) Kids.COLUMNS else chosenColumns
+    /** SuperHome's factory choice: no plate under the row. */
     var homePlate = false; private set
-    var showAllNames = true; private set
+    private var chosenAllNames = true
+    /** As chosen; every name in Elders mode. */
+    val showAllNames: Boolean get() = chosenAllNames || (Kids.active && Kids.kind == KidsKind.Elders)
     var clockRight = false; private set
     /** SuperHome's factory choice: the big clock across the top rather than one small line. */
     var largeClock = true; private set
@@ -95,15 +102,15 @@ object LiteSettings {
     fun init(context: Context) {
         if (::prefs.isInitialized) return
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        focusStyle = FocusStyle.of(prefs.getString("focus_style", null))
+        chosenFocusStyle = FocusStyle.of(prefs.getString("focus_style", null))
         oneRowHome = prefs.getBoolean("one_row_home", false)
         peekNextRow = prefs.getBoolean("peek_next_row", true)
         // The shape first: the saved count of a different shape is not a choice for this one.
         iconShape = IconShape.of(prefs.getString("icon_shape", null))
-        homeColumns = prefs.getInt("home_columns", iconShape.defaultColumns).takeIf { it in HOME_COLUMNS }
+        chosenColumns = prefs.getInt("home_columns", iconShape.defaultColumns).takeIf { it in HOME_COLUMNS }
             ?: iconShape.defaultColumns
         homePlate = prefs.getBoolean("home_plate", false)
-        showAllNames = prefs.getBoolean("show_all_names", true)
+        chosenAllNames = prefs.getBoolean("show_all_names", true)
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", true)
         showWeather = prefs.getBoolean("show_weather", true)
@@ -123,7 +130,7 @@ object LiteSettings {
 
     private fun put(block: SharedPreferences.Editor.() -> Unit) = prefs.edit(action = block)
 
-    fun chooseFocusStyle(v: FocusStyle) { focusStyle = v; put { putString("focus_style", v.key) } }
+    fun chooseFocusStyle(v: FocusStyle) { chosenFocusStyle = v; put { putString("focus_style", v.key) } }
     fun chooseOneRowHome(v: Boolean) { oneRowHome = v; put { putBoolean("one_row_home", v) } }
 
     /**
@@ -132,15 +139,15 @@ object LiteSettings {
      */
     fun chooseIconShape(v: IconShape) {
         if (v == iconShape) return
-        val kept = homeColumns.takeIf { it in v.columns } ?: v.defaultColumns
-        iconShape = v; homeColumns = kept
+        val kept = chosenColumns.takeIf { it in v.columns } ?: v.defaultColumns
+        iconShape = v; chosenColumns = kept
         put { putString("icon_shape", v.key); putInt("home_columns", kept) }
     }
 
-    fun chooseHomeColumns(v: Int) { if (v in HOME_COLUMNS) { homeColumns = v; put { putInt("home_columns", v) } } }
+    fun chooseHomeColumns(v: Int) { if (v in HOME_COLUMNS) { chosenColumns = v; put { putInt("home_columns", v) } } }
     fun choosePeekNextRow(v: Boolean) { peekNextRow = v; put { putBoolean("peek_next_row", v) } }
     fun chooseHomePlate(v: Boolean) { homePlate = v; put { putBoolean("home_plate", v) } }
-    fun chooseShowAllNames(v: Boolean) { showAllNames = v; put { putBoolean("show_all_names", v) } }
+    fun chooseShowAllNames(v: Boolean) { chosenAllNames = v; put { putBoolean("show_all_names", v) } }
     fun chooseClockRight(v: Boolean) { clockRight = v; put { putBoolean("clock_right", v) } }
     fun chooseLargeClock(v: Boolean) { largeClock = v; put { putBoolean("large_clock", v) } }
     fun chooseShowWeather(v: Boolean) { showWeather = v; put { putBoolean("show_weather", v) } }
@@ -165,6 +172,9 @@ object LiteSettings {
     }
 
     fun relock() { unlockedUntil = 0L }
+
+    /** Whether [pin] is the PIN, without unlocking anything: for Kids mode, as in the full app. */
+    fun pinMatches(pin: String): Boolean = pinHash != null && hash(pin) == pinHash
 
     /** Sets the PIN, digits or [arrows] (U, D, L, R), or turns it off with null. */
     fun choosePin(pin: String?, arrows: Boolean = false) {
