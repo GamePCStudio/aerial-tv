@@ -4,6 +4,40 @@
 
 ## 现状（2026-11-03）
 
+- **1.82（versionCode 110）+ Aerial Lite 1.18（20），2026-11-03 深夜发布**（[v1.82](https://github.com/pengchujin/aerial-tv/releases/tag/v1.82)，tag 在 900c4e1）：1.81 之后 main 上的全部内容，即下面标「未发布」的各条（PR #858 #995 #1206、小米开机提前接管、PR #1212 流畅度和 Android 7–11 包管理器编译、#1219 无帧影片上的控制中心玻璃、小米航拍磨砂的卡住标记），加上晚巡检这一轮。versionCode 跳过 108、109（TCL 上装过这两个测试包）。三个包签名 e089…，412 个单元测试通过。小米 MFTR0 `install-multiple` standard + .dm（`install-dm` / `speed-profile`）：`selftest.sh` 守护、主页键从设置 0.4 秒、信号源 8 项，`hid` 造的遥控器主页键从 HDMI 2 直接回 Aerial。TCL MT5879 用 `APK_FILE=… KEEP_ADB=1 tools/install.sh guard`（adb 被 `INSTALL_FAILED_VERIFICATION_FAILURE` 拒后走多屏互动，截图确认焦点在「同意」再按确定），compile speed，两个 walleve 服务、屏保 AerialDream、开机组件都没变：`hid` 主页键从 AIDA64 和 HDMI 2 直接回 Aerial，信号源 7 项。**注意**：TCL 上 `selftest.sh` 的 `home_from_app`（shell 注入的主页键，不经过过滤）这次两三次都是 4.9–5.3 秒（守护 0.5 秒内看到 TCL 桌面并拉回，Android 主页键后 5 秒的后台启动限制挡住），108 测试包时是 0.2 秒，两包之间的代码差别只有 PR #1222 的图像设置入口，原因没查清；实体遥控器的路径（`hid`）不受影响。官网已部署：version.txt = v1.82，notes.json 有 1.82，三个 APK 大小和 md5 与 Release 一致，`site/diag/` 带上了，新 `selftest.sh` / `restore.sh` 在线。9 个 issue 和 4 个 PR 贴了发布链接（`local/triage/release-1.82-posts.py`）。小米上的 Lite 仍是 `-Pnohome` 测试包（19），没装 1.18 正式包。下次发版 versionCode ≥ 111。
+
+- **2026-11-03 晚巡检（main，未发版）**，记录见 `local/triage/2026-11-03c-full.md`（原始 `raw-2026-11-03c/`），回复 `replies-2026-11-03c.py` / `replies-2026-11-03d.py`，发出记录 `posted-2026-11-03c.txt`（45 条）。332 issue / 56 PR，用户最后发言 43 + 11，上一轮已定不回的 11 个不动，逐个读了 43 个。在 worktree `.claude/worktrees/aerial-tv-triage-916420` 上做，`ATV`（smooth-corners-everywhere）别的会话的改动没碰。
+  - 修：**#684 #1213 #1205 守护在解锁前绑定就崩**（678e319）：1.79 儿童模式在 `onServiceConnected` 开头调 `KidsWatch.start`，读加密存储；没设锁屏密码的电视也有解锁前那一两秒，守护崩两次后系统把它推迟 30 分钟，开机没人接管（红米投影仪 4 mt5873、峰米 spiderman、海尔 YunOS 三份崩溃日志一样）。现在解锁后（`userUnlocked`）再启动，屏幕关、主页键的 `BootOpen` 记录也只在解锁后写。#1091 创维 8R145 按住音量只走一格（8f9d65f，见 `devices/skyworth-coocaa.md`）。#1158 轮播视频时底板玻璃不跟着换（3ebb21b：取不到画面的电视上，动着时的玻璃是开头那张图一次做好的静态磨砂，换段时重做）。#1118 #940 Lite 换行闪黑（97064b3：窗口背景只用一个渐变，做好后一直留着，「流畅」也用 1 ms 的同一个渐变跳）。
+  - 收尾又来 5 条：合 PR #1222（3fdc692，personalbotai：TCL G06 / mt5867 上 `SHOW_WINDOW` 打不开时直接开 `com.tcl.settings/.PictureActivity`，只编译和单测，MT5879 走原路径）；`selftest.sh` 没有 perl 时直接停下（ab29a84，#1208 的 Agent 没有 perl，等待循环立即返回、误判 FAIL）；#981 创维 8H57_H5 酷开屏保开始时 `skyRMService` 强停 Aerial（写进创维笔记，App 拦不住，请报告人关掉酷开屏保试）；#1221 小米电视 4 安卓 6 用量统计和通知监听没授权；#1223 #1220 要信息。
+  - 合 PR（cherry-pick，保留作者）：#1216 守护没绑定时认出原桌面（b0acc82，openzzm），加 8c4a25f：「桌面」磁贴走权限兜底打开时也算主动打开（新进程里守护还没绑定，PR 那条缓存是空的）；#1197 创维 43H30 原生背光（d42cc15，hiper25，按上次意见收窄后）；#1196 restore.sh 唯一监听（a206486，测试桩补了 1.81 的 TCL 开机组件读取）；#1198 report.sh 相邻 IP（df19632，macOS 的 BSD sed 上也试过）。不合：#1218（TCL ak30a5 静默背光，JNI 加载固件私有 libsitatv 走 /dev/sbinder；户主定不合，已关闭。TCL MT5879 也有这个库，放宽条件的测试包 versionCode 109 在 Android 11 上第一步就失败：App 拿不到 android_get_exported_namespace / android_dlopen_ext。纯 Kotlin 做不到，sbinder 要 ioctl）；#992 第 2 部分：户主同意按建议处理，已请作者变基到 main、把原桌面磁贴的 `startStockDirectly` 兜底限定在酷开（现在对所有电视生效）、补「不跑 restore 直接卸载」的实测、同步 `site/en/agent.md`，改完再评审、交户主定合不合。
+  - 验证：412 个单元测试（standard、guard）、`tools/` 32 + 19 个测试、Lite lint、三个包签名 e089…。**解锁前崩溃在 Google TV 模拟器（Android 13，加密 unsupported，设了 PIN）上复现并对照**：1.81 正式包重启后守护在 `onServiceConnected` 崩两次（R8 map id 和报告人的一样）；本分支包重启后 `bound while user locked; deferred takeover until unlock`，解锁后 `bringing Aerial back`，没有崩溃。小米 MFTR0 `install-multiple` 本分支 standard（versionCode 仍 107，`install-dm` / `speed-profile`）：`selftest.sh` 守护、主页键（从设置 0.3 秒）、`INPUTS=1` 8 个信号源通过，屏保进出录屏同一部影片、无黑帧。TCL MT5879 多屏互动推 guard 测试包 **1.82-test（versionCode 108，没提交）**，之后为测 PR #1218 又推了 109（**下次发版 ≥ 110**），截图确认焦点在「同意」再按确定，两个 walleve 服务保留，compile speed：`selftest.sh` 通过（信号源 7 项），`hid` 造的遥控器主页键从 AIDA64 和 HDMI 2 直接回 Aerial，音量单按一格、按住 1.5 秒连调、松手停（音量 9 → 30，已改回 9），屏保进出录屏无黑帧。Lite：安卓 4.3 模拟器在这台 Mac 上起不来（32 位 ARM），在 Google TV 模拟器上看了换行、快速来回换行、屏保进出后的背景都对；小米上的 Lite 测试包换成本轮的 `-Pnohome` 包（19，数据保留）。
+  - **没有真机验证的**：解锁前崩溃（三台报告机型都没有，模拟器复现）、8R145 按住音量、#1158（MT9655；TCL MT5879 上视频没有封面，走不到）、Lite 换行（没有 MStar 4.3）、#1216 的路径（MFTR0 上守护一直绑着）、43H30 背光。
+  - 官网重新部署了两次（带上 `site/diag/`，#710 的诊断包链接恢复；第二次带上新的 `selftest.sh`），version.txt 仍是 v1.81。**部署官网前要把 `ATV/site/diag/` 复制到当前 checkout 的 `site/diag/`**，否则诊断包又会被删掉（1.81 就是这样没了的）。
+  - 待办：#937 A7D 按住音量：守护见不到抬起，暂无办法。
+
+- **未发布（2026-11-03 晚，户主在 TCL 上觉得难看）：取不到影片画面的电视上，控制中心在首页的玻璃**（`LiquidGlass` 的 `FilmGlass`）。33% 黑 → 74% 烟色，加烘焙的顶部淡光。TCL MT5879 截图对比过（户主看过同意），控制中心帧耗时不变（中位 7.6–9.7 ms，GPU 9.5 ms）。只影响 `Wallpapers.filmGlassless` 的电视，小米不变。全部 App 的背景（那张之前取到的静止画面的磨砂）没改，换片后可能和身后影片对不上，可选改成同样的烟色盖在暂停的影片上，待户主定。TCL 上装的是这一版（versionCode 仍 107）。
+
+- **未发布（2026-11-03 晚，PR #1212 分支，户主在小米上试航拍壁纸觉得卡）：航拍壁纸流畅度**。小米 MFTR0，全部用 `tools/perf.py` 实测：
+  - **户主试的包没编译**：当天下午的测试包是 `install -r` 后马上 `compile -m speed` 装的，MFTR0 把命令行的任何编译档都改成 `speed-profile`，那时 profile 还是空的，结果是 `verify`（解释执行）。同一个包未编译 / 编译后：影片上移动焦点 p90 46 / 28 ms、p99 97 / 36 ms。`tools/install.sh` 改成 Android 9 起连同 APK 自带的 .dm 一起 `install-multiple`（实测 `install-dm`、`speed-profile`、odex 13.7 MB），「日常操作」的快速更新命令和 AGENTS.md 同步改了。
+  - **影片又被压暗了**：10-27（#659）起航拍壁纸按键也不停（`Wallpapers.keepsMoving`），`HomeScreen` 把它当成「一直播放」传 `shadeMoving`，所以户主 10-29 决定去掉的全屏压暗其实一直在画（截图：左上角亮度 150，去掉后 181）。现在只给信号源画面压暗。影片上移动焦点中位 18.6 → 15.7 ms，GPU 9.8 → 6.8 ms（进到 16.7 ms 预算内），影片在播时空闲换玻璃那几帧中位 18.0 → 14.5 ms。**画面变化**：航拍 / 我的视频壁纸比之前亮，户主看一下是否满意。
+  - 进屏保时磁贴主图层淡出不再开离屏缓冲（`AppTile`，阴影、焦点框、名字早就这样）：四次合计掉帧 49 → 27，中位 26.5 → 24 ms，噪声大。
+  - 试过没采用：ExoPlayer 进基线 profile（播放时进程 CPU 31.6% / 30.9% 一核，JIT 很快就编好热循环，没差别）；大时钟放进 GPU 缓存层（时钟模糊阴影每帧重画，`skip_layers=clock` 能省 2–4 ms 渲染线程，但缓存后只省约 0.4 ms GPU，在噪声里）。
+  - 还剩的：影片上磁贴比静态壁纸贵（`skip_layers=tiles` 影片上省 GPU 2 ms，静态只省 0.3 ms），这台电视影片和静态壁纸都是整屏重画（`debug.hwui.show_dirty_regions` 看过），剖析下来渲染线程时间分散在 HWUI 和 Mali 驱动里，没有单个热点。按住方向键连移（中位约 30 ms）、长按菜单（15–30 ms，两次之间跳）仍偏慢。
+  - **没编译的 Android 7–11 电视自己编译**（`update/PackageCompile.kt`，详见 ARCHITECTURE「升级」）：请系统 PackageManager 编译 Aerial 自己，不重装、不弹框。TCL MT5879 多屏互动装完实测两次，93 KB → 约 9 MB，9–10 秒；影片下首页移动启动后第一组中位 20.5 → 11.0 ms。用到了 package 服务的 shell 命令事务（隐藏接口，Android 12 起系统自己堵了），**户主 2026-11-03 同意随下个版本发**；不经过 adbd，只编 Aerial 自己。小米 MFTR0 是 Android 14，不走这条，只回归了没坏。没在 Android 7、8、9 真机上测过（9 的模拟器调用成功，但镜像本身只编到 extract）。
+  - 壁纸影片不再让 TCL 切到 120 Hz（`videoChangeFrameRateStrategy = OFF`）：改前影片一放 TCL 就从 60 切到 120 Hz，界面每帧只有 8.3 ms；改后放影片、按键都保持 60 Hz（`dumpsys SurfaceFlinger` 逐秒看过）。
+  - 新增：`ConfigReceiver --es wallpaper <id>`（换壁纸测影片，回复原壁纸和航拍画质，`""` 只查询）；`perf.py` 的 `film_idle`、`film_row`（等影片放起来再测）。
+  - 验证：单元测试 standard、guard 各 206 个、`tools/` 19 个测试、guard release 编译；小米上 `install.sh`（APK_FILE）走通 `install-dm`。小米、TCL 现在装的都是这一版（versionCode 仍 107；TCL 用多屏互动推了三次，都先截图确认焦点在「同意」再按，现在已编译）。小米的壁纸：测试中途户主自己换成了 `aerial:live`，测完按它还原；画质 auto 没动。TCL 的壁纸本来就是航拍，没改。Lite 没有影片壁纸，不用改。
+
+- **未发布（2026-11-03 傍晚，户主重启小米时发现开机先停在小米桌面）：小米开机更快进 Aerial**（ce74832，只在 PatchWall 上）。守护进程 `onCreate` 时用量统计显示 PatchWall 主界面在前，就马上开始接管，连上守护时不再重新计时。MFTR0 屏幕亮起到 Aerial 第一帧：改前 12.3 / 19 秒，改后 6.7 / 9.9 秒，细节见 `devices/xiaomi-mitv-mftr0.md`「开机到 Aerial 的时间」。412 个单元测试通过。开着小米「开机自动播放上次信号源」时（户主同意临时打开 `system boot_auto_play`，测完改回 0）重启停在 HDMI 1，没被拉走；那次守护进程在解锁前就起来了，提前接管那条路没走到，所以「进程启动时用量统计看到信号源就不接管」这一支没有直接实测。
+
+- **两台测试机装的是 main ff86031（含 #858 #995 #1206），没有发版**（2026-11-03 16:00）：小米 MFTR0 `adb install -r` standard + compile speed，`selftest.sh` 守护、两项主页键（从设置 0.3 秒）、`INPUTS=1` 8 个信号源逐个打开通过，返回键进屏保、唤醒正常，没有崩溃和 ANR。TCL MT5879 多屏互动推 guard（versionCode 仍是 107，ADB 右键到「同意」确认后再按），compile speed，约 60 秒后守护绑定，`selftest.sh` 守护、两项主页键（从酷控 0.1 秒）、`INPUTS=1` 7 个信号源通过，没有崩溃和 ANR，`media.player` 正常。两台都不是酷开、MFTR0 有 `BootActivity`，所以 #1206 的新路径两台都走不到，#995 在 MFTR0 上走得到（开机那一段没重启测）。PR #1206 #995 已留言关闭。
+
+- **未发布（2026-11-03 下午，合 PR #1206，户主定的原则：只提升兼容性，不改变其他电视现在的状况）：创维 8R734 按键没反应、ANR 循环**。cherry-pick 保留作者 wzpan（610452e 的内容），另加一个提交把它收窄：Aerial 是系统桌面时用 HOME 方式拉回自己（`bringBackIntent`），以及被普通方式新开成独立任务时用 HOME 方式重开（`reopenAsHome`），都只在 Android 13 及以上、装了 `com.tianci.system` 的酷开固件上生效（`hidesStandardTasks`）；其他把 Aerial 设成默认桌面的电视仍按组件启动，和以前一样。原因：那个固件的 `Task.prepareSurfaces` 只给 home 类型的任务每帧补一次可见性，普通任务的图层一直隐藏。作者在 8R734_A7HP 上验证，#992 里 CodeBenderPlus 在 8R721_A5FP 上交叉验证；#421 #839 #365 同芯片、同现象，可能也是它。我们这边：412 个单元测试通过，小米 MFTR0 装 release + compile speed，`selftest.sh` 守护、主页键通过（这台不是酷开，代码路径不变）。没有酷开 Android 13 真机，收窄后的版本没在作者那台上复测（收窄不改变那台上走的路径）。同一轮：#842 关闭，由 #992 取代（#992 的第 2 部分仍等户主定，作者需先变基去掉已合的部分）；#1197 请作者收窄到 `TCHotelApi` 真能加载时才接管；#1102 请作者拆开，并在液晶 Vidda 上确认不被当成激光机（MT9653 上和 #1112 会抢同一块背光）。
+
+- **未发布（2026-11-03 下午，合 PR #995）：小米开机广告 `BootActivity` 盖住 Aerial 时立刻拉回**。cherry-pick 保留作者 kitamaruramito，只改 `HomeGuardService.kt`：装有 `com.mitv.tvhome/.BootActivity` 的电视，在开机 3 分钟内、亮屏 15 秒内（守护绑定时屏幕已亮也算，记在 `boundAwakeAt`，不动 `screenOnAt`）每秒查一次用量统计，并把 `BootActivity` 当原桌面；时间窗外轮询自己停。以前 Android 7 以上只有 30 / 45 秒的复查。作者在 4S Max（AZFP0，Android 9）上用收窄前的版本重启两次，广告出来 0.4–0.5 秒拉回；最终版没有在他那台上复测。我们这边：412 个单元测试通过，release 版装到小米 MFTR0 + compile speed。**MFTR0 也有这个 `BootActivity`**（没导出，`am start` 报 not exported），所以新路径在它上面会走：装完绑定时轮询一次就把小米桌面换回 Aerial；`selftest.sh` 守护、主页键（从设置 0.3–0.9 秒）通过；`STANDBY=1` 让它进了待机、ADB 断开，户主用遥控器开机后 Aerial 在前台，守护日志正常。没测：重启（开机广告那一段，要户主同意）。Lite 没有守护，不用改。
+
+- **未发布（2026-11-03 下午，合 PR #858）：按返回进屏保时焦点磁贴变直角（#725 #654）**。cherry-pick 保留作者 tonv：进屏保的淡出不再在磁贴外面套一层 `graphicsLayer`（在 Android 9 的小米上，这一层会丢掉焦点放大和圆角裁剪），下沉改用 `offset`，透明度用 `AppTile(opacity = …)` 乘进磁贴、阴影、焦点框和名字各自的图层。作者在小米电视 6（MFZP0）上逐帧验证过，淡出全程保持 1.15 倍放大和圆角。我们这边：standard 单元测试通过，release 版装到小米 MFTR0 并 compile speed，户主看过进屏保的淡出，没有问题，唤醒回首页正常（MFTR0 本来就不出这个问题，只能确认没改坏）。Lite 没有这层淡出，不用改。**待办**：请 #654（NSOP0）和 #725（MFZP0）的报告人用下个版本复测；确认修好后删掉已经不起作用的实验开关 `saver_fade_offscreen`（`DiagLog`、`ConfigReceiver` 注释、诊断 display 行），删掉 `site/diag/` 并重跑 `tools/deploy-site.sh`。
+
 - **未发布（分支 `film-glass-1103`，worktree `/Users/jzb/Documents/ATV-glass`）：小米 MFTR0 航拍壁纸下看不到玻璃**（户主发现：底板、右上角按钮、个性化都不是磨砂）。诊断 `file_stuck=true glassless=true`：「文件取帧卡住」标记按开机存在偏好里，慢调用返回才清；当天装 1.81 时进程没了、调用没等到返回，标记沿用到重启，小米被当成 TCL 那样的「取不到帧」电视。现在别的进程留下的标记只在有 TCL 解析器（`FilmFrames.tclExtractor`）的电视上算数，TCL MT5879 不变。验证：MFTR0 `adb install -r` standard release + compile speed，日志 `a stuck mark from an earlier process dropped`，`glassless=false`；临时切航拍壁纸截图，底板、控制中心、个性化都是磨砂，测完用手机页换回 `daily:latest`。小米上现在装的是这个测试包（versionCode 仍 107，下次发版要大于 107）。TCL 没装、没测（行为按代码不变）。
 
 - **1.81（versionCode 107）+ Aerial Lite 1.17（19），2026-11-03 发布**（[v1.81](https://github.com/pengchujin/aerial-tv/releases/tag/v1.81)）：下面这一轮上午巡检的全部代码、PR #1191 天气定位，加上户主测过后要求的 **TCL 开机组件进安装脚本**（909f309：装有 `com.tcl.ttvs` 或 `system boot_app_componentname` 已有值时，`install.sh` 设 `boot_app_mode=boot_launcher`（原来空才设）和 `boot_app_componentname=app.orchard.tv/.MainActivity`，原值记在 `settings global aerial_boot_app_componentname` / `aerial_boot_app_mode`（空记成 `none`），`restore.sh` 改回；agent.md 中英同步；`tools/test_install.py` 的 adb 桩补了这两条）。三个包签名 e089…。小米 MFTR0 `adb install -r` standard + compile speed；TCL MT5879 先把开机组件清空，再用 `install.sh guard` 走多屏互动（截图确认焦点在「同意」再按确定），脚本打印「TCL: the TV now opens Aerial at power-on.」，两项和记下的原值（none）都对，两个 walleve 服务保留。回归：小米从设置和 HDMI 2、TCL 从 AIDA64 和 HDMI 2 用 `hid` 造的主页键拉回，信号源小米 8 项、TCL 7 项。官网已部署：version.txt = v1.81，三个 APK 大小和 md5 与 Release 一致，`tools/install.sh`、`restore.sh` 是新版。14 个 issue 贴了发布链接（`local/triage/release-1.81-posts.py`）。**户主的 TCL 现在开机组件是 Aerial（户主要求保留）**，见 `local/TVS.md`。
@@ -299,9 +333,13 @@ TV=<ip> tools/restore.sh [--uninstall]                  # 撤销所有授权和�
 只改了代码、想快速更新小米时：
 
 ```bash
-adb -s $XIAOMI_TV:5555 install -r app/build/outputs/apk/standard/release/app-standard-release.apk
-adb -s $XIAOMI_TV:5555 shell cmd package compile -m speed -f app.orchard.tv
+APK=app/build/outputs/apk/standard/release/app-standard-release.apk
+unzip -p $APK assets/aerial-dm/31.dm > ${APK%.apk}.dm   # Android 9–11 用 28.dm
+adb -s $XIAOMI_TV:5555 install-multiple -r $APK ${APK%.apk}.dm
+adb -s $XIAOMI_TV:5555 shell "dumpsys package dexopt | grep -A2 'app.orchard.tv\]'"   # 应是 speed-profile / install-dm
 ```
+
+**不要再用 `install -r` 加 `compile -m speed`**：小米 MFTR0 把命令行的 `speed`（连 `everything`、`verify`）都改成 `speed-profile`，装完马上编译时还没有 profile，结果是 `verify`，也就是没编译（2026-11-03 下午的测试包就是这样，户主用它试航拍壁纸觉得卡：首页移动 p90 46 ms，编译后 28 ms）。连同 APK 自带的 .dm 一起装，安装时就按基线 profile 编译；`tools/install.sh` 在 Android 9 及以上也这么装。
 
 覆盖安装会保留之前的授权；守护服务由 App 启动时自己恢复。
 
@@ -331,6 +369,7 @@ adb -s $XIAOMI_TV:5555 shell cmd package compile -m speed -f app.orchard.tv
 - **手机配置页**：令牌不写日志，从电视截图里识别二维码即可：`swift tools/qr-from-screenshot.swift shot.png`。
 - **剖析 release 包**：临时加 `<profileable android:shell="true" />`（不要提交），`simpleperf record --app app.orchard.tv -e cpu-clock -g`，用同一次编译的 mapping.txt 还原符号。见 [PERF-2026-10-28.md](PERF-2026-10-28.md)「怎么剖析 release 包」。
 - **逐层找开销**：`ConfigReceiver --es skip_layers picture,shade,plate,clock,pill,tiles,shadow,names`，下一帧生效，不保存，`--es skip_layers ""` 恢复。
+- **影片壁纸下测**：`ConfigReceiver --es wallpaper aerial:live`（回复 `wallpaper_before=… aerial_quality=…`，测完用同一开关换回原值），再 `tools/perf.py <serial> film_idle film_row`。
 - **按操作测卡顿**：`python3 tools/perf.py <serial> [row row_hold grid cc wallpaper menu idle saver cold]`。脚本自动按键，读 `gfxinfo framestats`，打印中位数、p90、主线程和 GPU 时间。测之前先装 release 版并 compile speed。A/B 对比时用 `ConfigReceiver --es effects auto|full|lite`、`--es aerial_quality auto|1080p|4k|dolby_vision` 切换（这两项是户主的设置，测完要还原）。`setprop debug.hwui.overdraw show` 加上 `service call activity 1599295570` 可以看过度绘制，**测帧之前一定要关掉**，开着时 GPU 时间会多一半。
 - **立即预览屏保**：`adb shell am start -a app.orchard.tv.PREVIEW_SCREENSAVER -n app.orchard.tv/.MainActivity`；TCL 上测系统屏保：`am start -n com.android.systemui/.Somnambulator`。
 - **模拟小米的待机清理**：`adb shell am force-stop app.orchard.tv`，然后看日志里出现 `revived by the notification listener binding`。
@@ -373,7 +412,7 @@ plutil -convert json -o en.json TVIdleScreenStrings.bundle/en.lproj/Localizable.
 - 手机配置页是局域网 HTTP，只靠随机令牌保护。
 - 签名用的是 debug key。想换成正式密钥，必须先在两台电视上卸载重装（会丢掉壁纸、照片和图标排序），TCL 还要走一遍当贝流程。
 - 海信等其他品牌没有在真机上验证过。
-- 按返回进屏保时焦点磁贴变直角（#654 #725，Redmi X50 MiTV-NSOP0 Novatek、小米电视 6 MiTV-MFZPO，都是 Android 9）：`saver_fade_offscreen` 没用（NSOP0 开着开关、重启后照样出现，2026-10-27）。逐帧看三段视频：变直角的是当时有焦点的那块磁贴（云视听极光、PlayStation 都出现过，不是某个图标），按返回后它一下子落下（名字消失、缩回原大小），就在这一刻变成直角，还完全不透明，之后才淡出；同一行其他磁贴一直是圆角。角上露出的是磁贴自己的图，但成品图和原图路径按代码都裁成了圆角，没找到会画出整张方图的地方。Android 9 模拟器（aerial28）复现不了：那里按返回后磁贴一直保持选中，电视上却会先失去焦点，窗口焦点不变（日志里没有 window focus false）。下一步：给 NSOP0 的报告人（有 adb）做诊断版，每条绘制路径标一种颜色，日志记失去焦点和磁贴重建。
+- 按返回进屏保时焦点磁贴变直角（#654 #725；**2026-11-03 合入 PR #858，去掉了磁贴外层的淡出图层，等报告人复测，下面是之前的记录**，Redmi X50 MiTV-NSOP0 Novatek、小米电视 6 MiTV-MFZPO，都是 Android 9）：`saver_fade_offscreen` 没用（NSOP0 开着开关、重启后照样出现，2026-10-27）。逐帧看三段视频：变直角的是当时有焦点的那块磁贴（云视听极光、PlayStation 都出现过，不是某个图标），按返回后它一下子落下（名字消失、缩回原大小），就在这一刻变成直角，还完全不透明，之后才淡出；同一行其他磁贴一直是圆角。角上露出的是磁贴自己的图，但成品图和原图路径按代码都裁成了圆角，没找到会画出整张方图的地方。Android 9 模拟器（aerial28）复现不了：那里按返回后磁贴一直保持选中，电视上却会先失去焦点，窗口焦点不变（日志里没有 window focus false）。下一步：给 NSOP0 的报告人（有 adb）做诊断版，每条绘制路径标一种颜色，日志记失去焦点和磁贴重建。
 
 ## 可以继续做的事（按价值排序）
 
