@@ -1,11 +1,11 @@
 # superaerialappname.txt 填写说明
 
-SuperHome（超级影视桌面）的预设清单：包名 → 桌面显示名，加上预设文件夹（分组）。
-本文只讲**这个文件怎么写**；程序内部机制见 [程序说明.md](程序说明.md) 第 3、4 节。
+SuperHome（超级影视桌面）的预设清单：包名 → 桌面显示名，加上预设文件夹（分组），1.9 起还能写一行置顶名单（`top`）。
+本文只讲**这个文件怎么写**；程序内部机制见 [程序说明.md](程序说明.md) 第 3、4、5 节。
 
 > 文件名是 **`superaerialappname.txt`**（上一版误写成 `supeaerialappname.txt`，已改）。电视上放过旧名的，把文件改名即可，旧名不再被读。
 
-以下每一条都是按 [SuperNames.kt](lite/src/main/java/app/supeaerial/tv/lite/SuperNames.kt) 的 `parse()`、[SuperSeed.kt](lite/src/main/java/app/supeaerial/tv/lite/SuperSeed.kt) 的 `place()` 实读核对过的，不是推测。
+以下每一条都是按 [SuperNames.kt](lite/src/main/java/app/supeaerial/tv/lite/SuperNames.kt) 的 `parse()`、[SuperSeed.kt](lite/src/main/java/app/supeaerial/tv/lite/SuperSeed.kt) 的 `place()`、[HomeActivity.kt](lite/src/main/java/app/supeaerial/tv/lite/HomeActivity.kt) 的 `leadPinned()` 实读核对过的，不是推测。
 
 ---
 
@@ -34,13 +34,13 @@ adb push superaerialappname.txt /sdcard/Android/data/app.supeaerial.tv.lite/file
 
 ### 四层优先级
 
-| 谁说的话最算 | 名字（name） | 分组（group） |
-|---|---|---|
-| 1 | 你在 App 里 / 手机页给这个 App 手打的名字 | —（手打的文件夹名不算一层） |
-| 2 | 电视上这个文件 | 电视上这个文件 |
-| 3 | 云端下载的 | 云端下载的 |
-| 4 | APK 内置的 | APK 内置的 |
-| 兜底 | App 自己的安卓标签 | 没有 |
+| 谁说的话最算 | 名字（name） | 分组（group） | 置顶（top） |
+|---|---|---|---|
+| 1 | 你在 App 里 / 手机页给这个 App 手打的名字 | —（手打的文件夹名不算一层） | —（手打的名字不影响排序） |
+| 2 | 电视上这个文件 | 电视上这个文件 | 电视上这个文件 |
+| 3 | 云端下载的 | 云端下载的 | 云端下载的 |
+| 4 | APK 内置的 | APK 内置的 | APK 内置的 |
+| 兜底 | App 自己的安卓标签 | 没有 | 没有 |
 
 **两层的合并方式不一样，这是最容易搞错的地方：**
 
@@ -48,6 +48,7 @@ adb push superaerialappname.txt /sdcard/Android/data/app.supeaerial.tv.lite/file
 - **group 按组名整条替换**。同一个组名只要在高优先级的层出现过，这一组就**整条**用它，低优先级层里同组名的包名列表会被完全丢掉——**不是并集**。
   例：云端写 `group 影视 com.a,com.b`，本地写 `group 影视 com.c` → 最终「影视」里只有 `com.c`。
 - 同一个文件里写了两行同名 group → **只有第一行生效**（第二行整条丢弃）。一个文件夹的包名必须写在一行里。
+- **top 按包名逐条取位置**（1.9 起）。高优先级层写过的包名排在前面，低层只补高层没写过的；所以本地文件那一份只要写了 `top`，它列的顺序就是最终顺序。同一个文件里写几行 `top` 会**接起来**（不像 group 那样丢第二条）。
 
 ---
 
@@ -62,9 +63,9 @@ adb push superaerialappname.txt /sdcard/Android/data/app.supeaerial.tv.lite/file
   ```
   上面这条的名字会变成 `应用名   # 这段会被当成名字的一部分`（中间空格也保留）。**注释永远单独占一行。**
 - 字段之间用**空格或 Tab** 分开，连续多个算一个。
-- 关键字**大小写不敏感**（`NAME` = `name`）；关键字必须是 `name` / `group` / `url` 之一，写了别的会被忽略并在 logcat 打一行 `unknown line in the list: …`。
+- 关键字**大小写不敏感**（`NAME` = `name`）；关键字必须是 `name` / `group` / `top` / `url` 之一，写了别的会被忽略并在 logcat 打一行 `unknown line in the list: …`。
 - 编码：**UTF-8 最好**；存成 Windows 记事本默认的 GBK 也读得出（程序先按严格 UTF-8 试，解不动就按 GBK 重解并打一行日志）。带 BOM 会被自动剥掉。
-- 字段缺内容的行**静默丢掉**，不报错：`name` 少了显示名、`group` 少了包名，这行就当没写。
+- 字段缺内容的行**静默丢掉**，不报错：`name` 少了显示名、`group` 少了包名、`top` 一个包名都没有，这行就当没写。
 
 ---
 
@@ -91,7 +92,7 @@ name <包名> <显示名>
 
 1. **手机页的 JSON（不用数据线，最方便）**。个性化 → 手机页 那一行给出的地址形如 `http://192.168.11.95:8790/ab12cd34/`，把末尾的 `/` 换成 `api/state`，浏览器打开就能看到每个 App 的 `"key"`，那个就是包名。手机页界面上不显示包名，只有这个接口里有。
 2. **adb**：`adb shell pm list packages` 全量列；想只列第三方 `pm list packages -3`。不知道是哪个 App 就先在电视上打开它，再 `adb shell dumpsys activity activities | grep -i activity` 看当前界面的包名（4.x 上字段名可能是 `mLastFocusedApp` 一类，翻输出找 `com.xxx/` 的形式）。
-3. **logcat**：见第 6 节，改名生效时会打 `pkg(file)` / `pkg(cloud)` / `pkg(apk)`。
+3. **logcat**：见第 7 节，改名生效时会打 `pkg(file)` / `pkg(cloud)` / `pkg(apk)`。
 
 ---
 
@@ -159,7 +160,24 @@ group **不是**「强制布局」，它是**播种**：只处理**程序第一�
 
 ---
 
-## 5. `url` 行：换云端地址
+## 5. `top` 行：把某几个 App 永远排在最前面（1.9 起）
+
+```
+top com.hgtv.star,com.mytvb
+```
+
+- 第 2 个字段起**全是包名**，逗号、空格、Tab 任意分隔；一行写不完可以分几行写，位置按写下来的先后接起来，同一个包名重复只算第一次。
+- **效果**：这几个 App 的磁贴永远排在桌面第一屏最前面，按这行写的顺序；其余的照你手动摆好的顺序，一个都不动。
+- **它只改屏幕上看到的，不改存盘的布局**。把某一行 `top` 删掉、或删掉里面某个包名，那块磁贴回到它原来被你挪去的位置。
+- **和 `group` 的区别**：`group` 是播种，只管「程序第一次见到的 App」，已经摆过的 App 不动（见第 4 节）；`top` 每次排版都生效，**老电视上装新版本也立刻看得见**。想让某个早就摆好的 App 排到前面，用 `top`，别改 `group`。
+- **和 `Defaults.preferred` 的区别**：`preferred` 是 APK 里写死的 16 个包名（本分支最前面加了 `com.hgtv.star`、`com.mytvb`），只在**电视第一次排版**时决定顺序、之后能被你挪走；`top` 是清单里的、不用出包就能改，而且改完马上在前排。两份名单都按**包名**，都不认显示名。
+- 置顶的 App 如果已经被收进了某个文件夹，那是**那个文件夹**整块排到前面（文件夹磁贴本身的位置没法拆开排）。
+- **能用的地方**：只有桌面。Kids / Elders 模式用它自己的允许名单，手机页的应用列表按名字排，`top` 都不参与。
+- **副作用**：置顶的磁贴长按挪位置会「看着没反应」——存盘顺序改了，但屏幕上的顺序仍按 `top` 走。要挪它先从 `top` 里把它去掉。
+
+---
+
+## 6. `url` 行：换云端地址
 
 ```
 url https://800915.xyz/superaerial/superaerialappname.txt
@@ -168,13 +186,13 @@ url https://800915.xyz/superaerial/superaerialappname.txt
 - **只有电视上本地文件里的 `url` 有效**。云端那份或 APK 那份里写 `url` 不会改变下载地址——下载只认「本地文件的 url，没有就用编译时写死的 `SuperNames.CLOUD`」。
 - 值必须以 `http://` 或 `https://` 开头，**而且这一行除了 URL 不能再写任何东西**：`url` 取的是行内剩余整段，`url https://x/y.txt  # 注释` 会把 ` # 注释` 一起当地址的一部分，请求必挂。
 - 取回来的清单**整份替换**云端层（不增量合并）。所以云端那一份要写成完整清单，别只写增量的几条。
-- 拿回来的内容如果**一个 name、一个 group 都没有**（比如被门户劫持、被 302 到了网站首页），程序判定这不是清单，**保留电视上已有的那份**，只在日志里警告。
+- 拿回来的内容如果**`name`、`group`、`top` 一个都没有**（比如被门户劫持、被 302 到了网站首页），程序判定这不是清单，**保留电视上已有的那份**，只在日志里警告。
 - HTTPS 失败会自动降级用 HTTP 再试一次（4.x 上证书经常不认）。所以地址可以是 https，也能在只通 http 的网络上用。
 - 频率：12 小时查一次；一次失败后 10 分钟才再试，不会每次开机都打你的服务器。
 
 ---
 
-## 6. 改完怎么生效，怎么确认
+## 7. 改完怎么生效，怎么确认
 
 **读取时机**（本地文件按修改时间判断变没变）：
 
@@ -201,7 +219,7 @@ adb logcat -c && adb shell am force-stop app.supeaerial.tv.lite && adb logcat -s
 
 | 日志 | 意思 |
 |---|---|
-| `list: 12 from the TV's file, 6 from the cloud, 6 built in` | 三层各读到几条 name。你写了却没数 → 文件没放对位置或编码/关键字写错 |
+| `list: 12 from the TV's file, 6 from the cloud, 6 built in; 2 pinned to the front` | 三层各读到几条 name，末尾是 `top` 合并后有几种包名要置顶（0 = 你这行没生效，多半是关键字或包名拼错） |
 | `the list is not UTF-8; reading it as GBK` | 按 GBK 读到了，正常 |
 | `unknown line in the list: xxx yyy` | 关键字写错了（该行被忽略） |
 | `preset folder «影视» holds 4 app(s): com.a, com.b, …` | 播种动了哪些：只有这里列出的 App 才会被收进文件夹 |
@@ -212,7 +230,7 @@ adb logcat -c && adb shell am force-stop app.supeaerial.tv.lite && adb logcat -s
 
 ---
 
-## 7. 一份能直接抄的完整例子
+## 8. 一份能直接抄的完整例子
 
 ```
 # 我的电视的预设：存成 UTF-8，放 /sdcard/tv/superaerialappname.txt
@@ -234,11 +252,14 @@ group 体育  com.miguvideo.tv
 group 少儿  com.cibn.kids
 
 # 「系统应用」文件夹不用写：ROM 预装的 App 程序自己收
+
+# ---- 置顶（1.9 起）：这几个永远排在桌面最前面，按这里写的先后；不改你已经摆好的布局
+top com.hgtv.star,com.ktcp.video
 ```
 
 ---
 
-## 8. 写错的后果对照
+## 9. 写错的后果对照
 
 | 现象 | 原因 |
 |---|---|
@@ -249,3 +270,6 @@ group 少儿  com.cibn.kids
 | `url` 写了没用，还是在下载默认地址 | 把 `url` 写进了云端那份文件；只有本地文件的 `url` 有效 |
 | 本地放了文件却不生效 | 放到第二个位置但第一个位置已存在同名文件（只取第一个存在的）；或权限被拒（6.0+ 用 `Android/data/.../files/` 那条路径） |
 | 装了新 App 它进了「系统应用」而不是你写的组 | 那个 App 是 ROM 预装的且你的 group 里包名拼错了（大小写/少字母），退到系统规则 |
+| 写了 `top`，桌面没变化 | logcat 里 `… pinned to the front` 是 0 → 这行没读到（关键字/文件位置不对）；数量对但还是没排前面 → 包名拼错，或那台电视开着 Kids / Elders 模式（它用自己的允许名单） |
+| 置顶的磁贴长按挪位置「挪不动」 | 设计如此：`top` 每次上屏都盖在存盘顺序上面。要挪它先把它从 `top` 里去掉 |
+| 置顶的 App 找不到了、只有它的文件夹排在前面 | 那个 App 已经被收进文件夹（`group` 或系统规则），置顶的是整个文件夹，不是夹里那一块 |

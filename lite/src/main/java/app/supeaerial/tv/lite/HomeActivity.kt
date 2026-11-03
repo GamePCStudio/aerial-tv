@@ -315,11 +315,26 @@ class HomeActivity : Activity(), HomeView.Host {
         // Every app Kids and Elders mode can show: Home's with each folder's in its place, then the hidden ones.
         kidsCandidates = arranged.home.flatMap { e -> e.folder?.let { arranged.folders[it.id].orEmpty() } ?: listOf(e) } + arranged.hidden
         if (Kids.enabled) Kids.notePackages(kidsCandidates.filter { it.key in Kids.allowed }.mapTo(HashSet()) { it.component.packageName })
-        home.setApps(if (Kids.active) Kids.allowed.mapNotNull { k -> kidsCandidates.firstOrNull { it.key == k } } else arranged.home)
+        home.setApps(if (Kids.active) Kids.allowed.mapNotNull { k -> kidsCandidates.firstOrNull { it.key == k } } else leadPinned(arranged.home))
         (panels.lastOrNull() as? FolderView)?.let { open ->
             val inside = folderApps[open.folderId]
             if (inside.isNullOrEmpty()) closePanel() else open.setApps(inside)
         }
+    }
+
+    /**
+     * SuperHome: the preset list's `top` packages lead the grid, in the order the list gives them;
+     * every other tile keeps the place the saved arrangement gives it. A tile whose folder holds one
+     * of them leads with it. Nothing is written to the arrangement, so dropping a package from the
+     * list puts that tile back where it was moved rather than at the start.
+     */
+    private fun leadPinned(tiles: List<AppEntry>): List<AppEntry> {
+        val top = SuperNames.tops()
+        if (top.isEmpty()) return tiles
+        fun rank(tile: AppEntry): Int? = tile.folder
+            ?.let { f -> folderApps[f.id].orEmpty().firstNotNullOfOrNull { top.indexOf(it.key).takeIf { i -> i >= 0 } } }
+            ?: top.indexOf(tile.key).takeIf { it >= 0 }
+        return tiles.sortedBy { rank(it) ?: top.size }
     }
 
     /** A folder's picture, made again only when what it shows changes. */

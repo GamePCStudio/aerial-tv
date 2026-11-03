@@ -17,12 +17,17 @@
 # 语法：
 #   name   包名   显示名
 #   group  组名（不能带空格）  包1,包2,包3
+#   top    包1,包2              —— 这些 App 永远排在桌面最前面，按写下的先后
 #   url    https://你的地址/superaerialappname.txt   （只有本地文件里的 url 有效）
 #
 # 分组是「播种」，只处理程序第一次见到的 App：已经摆过的 App 不会被移动；
 # 一个文件夹的全部包名写在一行里（同名组只有第一行算）；
 # ROM 预装的 App 程序自己收进「系统应用」文件夹，不用写在这里。
+# 置顶（top）只决定屏幕上谁排在最前，不改动你手动摆好的顺序；把某个包名从 top 里删掉，
+# 那块磁贴就回到它原来摆的位置，而不是跑到最前面。一个包名在几层里都出现时，
+# 排在第几位置看优先级最高的那一层。
 # 完整写法与踩坑见仓库里的 superaerialappname填写说明.md。
 
 name com.hgtv.star,红果短剧TV
 name com.mytvb,哔哩哔哩TV
+top com.hgtv.star,com.mytvb

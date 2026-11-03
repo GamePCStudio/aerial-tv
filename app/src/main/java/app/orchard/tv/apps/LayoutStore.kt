@@ -209,6 +209,9 @@ class LayoutStore(context: Context) {
 /** First-run arrangement: streaming apps first, the TV's own utilities last. */
 private object Defaults {
     private val preferred = listOf(
+        // SuperHome's own two, ahead of everything: the packages the owner watches most.
+        "com.hgtv.star",                   // 红果短剧TV
+        "com.mytvb",                       // 哔哩哔哩TV
         "com.ktcp.video",                  // 云视听极光
         "com.gitvdemo.video",              // 银河奇异果
         "com.cibn.tv",                     // CIBN 酷喵

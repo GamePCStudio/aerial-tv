@@ -30,10 +30,12 @@ data class NameGroup(val name: String, val packages: List<String>)
  * everything after it is the shown name, so it may hold spaces; a comma may stand for the one space
  * between the package and that name (`name com.hgtv.star,红果短剧TV`). The `group` line's second field
  * is the folder's name and must not hold spaces, and its packages follow, split by commas, spaces or
- * tabs; the `url` line takes the rest of the line as the address to fetch the list from.
+ * tabs. The `top` line holds packages the same way and says those tiles lead the grid (see [tops]).
+ * The `url` line takes the rest of the line as the address to fetch the list from.
  * ```
  * name   com.hgtv.star           红果短剧TV
  * group  影视                     com.hgtv.star,com.gitvdemo.video
+ * top    com.hgtv.star,com.mytvb
  * url    https://example.com/my-appname.txt
  * ```
  * A `#` or `//` at the start of a line is a comment and blank lines are ignored — but a comment
@@ -51,15 +53,15 @@ object SuperNames {
     /** A failed fetch is tried again after this, not on every start. */
     private const val RETRY_MS = 10 * 60 * 1000L
 
-    private class Lists(val names: Map<String, String>, val groups: List<NameGroup>, val url: String?)
+    private class Lists(val names: Map<String, String>, val groups: List<NameGroup>, val top: List<String>, val url: String?)
 
     private lateinit var context: Context
     private lateinit var cacheFile: File
     private lateinit var prefs: android.content.SharedPreferences
 
-    @Volatile private var bundled = Lists(emptyMap(), emptyList(), null)
-    @Volatile private var cloud = Lists(emptyMap(), emptyList(), null)
-    @Volatile private var local = Lists(emptyMap(), emptyList(), null)
+    @Volatile private var bundled = Lists(emptyMap(), emptyList(), emptyList(), null)
+    @Volatile private var cloud = Lists(emptyMap(), emptyList(), emptyList(), null)
+    @Volatile private var local = Lists(emptyMap(), emptyList(), emptyList(), null)
     @Volatile private var localStamp = 0L
     @Volatile private var lastAttempt = 0L
 
@@ -73,7 +75,7 @@ object SuperNames {
         }.getOrNull())
         cloud = parse(cacheFile.takeIf { it.exists() }?.let { runCatching { decode(it.readBytes()) }.getOrNull() })
         readLocal()
-        Log.i(TAG, "list: ${local.names.size} from the TV's file, ${cloud.names.size} from the cloud, ${bundled.names.size} built in")
+        Log.i(TAG, "list: ${local.names.size} from the TV's file, ${cloud.names.size} from the cloud, ${bundled.names.size} built in; ${tops().size} pinned to the front")
     }
 
     /** The preset name for [pkg], in the order the layers above; null when no layer has one. */
@@ -86,6 +88,16 @@ object SuperNames {
         cloud.names.containsKey(pkg) -> "cloud"
         bundled.names.containsKey(pkg) -> "apk"
         else -> "app"
+    }
+
+    /**
+     * The `top` packages, highest layer first and each one once: Home shows these tiles before every
+     * other tile, in this order. Only what is on screen — the saved arrangement keeps its own order,
+     * so taking a pinned app out of the list puts its tile back where it was moved.
+     */
+    fun tops(): List<String> = LinkedHashSet<String>().run {
+        for (pkg in local.top + cloud.top + bundled.top) add(pkg)
+        toList()
     }
 
     /**
@@ -140,7 +152,7 @@ object SuperNames {
         val parsed = parse(decode(bytes))
         // A response that is not the list — a captive portal, a redirect to the site's own page —
         // parses to nothing. That must not empty the layer the TV already has.
-        if (parsed.names.isEmpty() && parsed.groups.isEmpty()) {
+        if (parsed.names.isEmpty() && parsed.groups.isEmpty() && parsed.top.isEmpty()) {
             Log.w(TAG, "the list at $url holds no names or groups; keeping the copy on this TV")
             prefs.edit().putLong("checked_at", now).apply()
             return
@@ -158,7 +170,7 @@ object SuperNames {
     private fun snapshot(): String {
         val merged = LinkedHashMap<String, String>()
         for (list in listOf(bundled, cloud, local)) merged.putAll(list.names)
-        return merged.toString() + '|' + groups()
+        return merged.toString() + '|' + groups() + '|' + tops()
     }
 
     /** The TV's own file, if there is one; gone again, its layer goes empty with it. */
@@ -167,7 +179,7 @@ object SuperNames {
         if (file == null) {
             if (localStamp != 0L) {
                 localStamp = 0L
-                local = Lists(emptyMap(), emptyList(), null)
+                local = Lists(emptyMap(), emptyList(), emptyList(), null)
             }
             return
         }
@@ -208,9 +220,10 @@ object SuperNames {
     }
 
     private fun parse(text: String?): Lists {
-        if (text == null) return Lists(emptyMap(), emptyList(), null)
+        if (text == null) return Lists(emptyMap(), emptyList(), emptyList(), null)
         val names = LinkedHashMap<String, String>()
         val groups = ArrayList<NameGroup>()
+        val top = ArrayList<String>()
         var url: String? = null
         for (raw in text.lines()) {
             val line = raw.trim().ifEmpty { continue }
@@ -232,10 +245,14 @@ object SuperNames {
                     val pkgs = parts.getOrNull(1)?.split(',', ' ', '\t')?.filter { it.isNotBlank() } ?: emptyList()
                     if (pkgs.isNotEmpty()) groups += NameGroup(name, pkgs)
                 }
+                "top" -> {
+                    val pkgs = rest.split(',', ' ', '\t').filter { it.isNotBlank() }
+                    if (pkgs.isNotEmpty()) top += pkgs
+                }
                 "url" -> url = rest.takeIf { it.startsWith("http://") || it.startsWith("https://") }
                 else -> Log.w(TAG, "unknown line in the list: $line")
             }
         }
-        return Lists(names, groups, url)
+        return Lists(names, groups, top, url)
     }
 }
