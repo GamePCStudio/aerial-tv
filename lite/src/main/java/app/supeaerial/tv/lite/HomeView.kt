@@ -624,8 +624,8 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
         /** An app's name under its tile: Type.Headline, centred, with the full app's soft shadow. */
         fun nameView(context: Context) = TextView(context).apply {
             setTextColor(Ui.WHITE)
-            // SuperHome: 14 units, one step under the panel text, so a row of eight names has room to breathe.
-            textPx(14f)
+            // SuperHome: 12 units, three steps under the panel text — the owner wanted the names two sizes down.
+            textPx(12f)
             typeface = Ui.font(600)
             gravity = Gravity.CENTER_HORIZONTAL
             setSingleLine()
