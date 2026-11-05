@@ -464,7 +464,8 @@ object SystemProbe {
             // opened, so the page was never tried (PR #1231, checked by its author on that TV). TCL
             // MT5879 (Android 11) has no PictureActivity and goes on to SHOW_WINDOW as before.
             val activityShown = runCatching {
-                val intent = Intent().setComponent(ComponentName("com.tcl.settings", "com.tcl.settings.PictureActivity"))
+                val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS)
+                    .setComponent(ComponentName("com.tcl.settings", "com.tcl.settings.PictureActivity"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
             }.isSuccess
@@ -572,6 +573,16 @@ object SystemProbe {
         if (runCatching { pm.getActivityInfo(FOXCONN_SOURCES, 0) }.getOrNull()?.exported == true &&
             runCatching { context.startActivity(sharp) }.isSuccess
         ) return true
+        // Older Coocaa with none of the above (Skyworth 8S61, MStar, Android 4.4.2, Aerial Lite's
+        // issue #1272): the system answers the remote's input key by starting its launcher's
+        // HomeService with the key, which shows the input page. The extra is read from the
+        // reporter's logcat and the dex, not tried from an app; last, so no other TV is touched.
+        val coocaaHome = ComponentName("com.tianci.movieplatform", "com.coocaa.homepage.vast.service.HomeService")
+        if (runCatching { pm.getServiceInfo(coocaaHome, 0) }.getOrNull()?.exported == true) {
+            val key = Intent("coocaa.intent.action.SOURCE_SERVICE").setComponent(coocaaHome)
+                .putExtra(Intent.EXTRA_KEY_EVENT, android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_TV_INPUT))
+            if (runCatching { context.startService(key) }.getOrNull() != null) return true
+        }
         return false
     }
 

@@ -505,7 +505,7 @@ class HomeGuardService : AccessibilityService() {
         }
         if (windowsSeen != windowsAtHome) return@Runnable
         val front = frontByUsage()
-        if (front == null || front.first !in stockHomes) {
+        if (front == null || (front.first !in stockHomes && !isFallbackHomeScreen(front.first, front.second))) {
             // Usage stats may not have the stock launcher yet: look again until the usual wait is up.
             val quiet = deafAfterHome || homeFrom in quietHomeApps(this)
             if (quiet && SystemClock.uptimeMillis() - homePressedAt < FRONT_AFTER_HOME_MS) {
@@ -817,23 +817,33 @@ class HomeGuardService : AccessibilityService() {
             DiagLog.i("guard: re-enabled after being switched off, with an app in front when Aerial died; leaving it")
             return
         }
+        // Stopped right after the stock launcher came up, and started again by the system's own
+        // rebind rather than revived: Dangbei H3S (RK3566, Android 11) force-stops Aerial a second
+        // after every Home press, after the guard had already started it again from Dangbei's
+        // launcher, and binds the guard again 23 s later; nothing was taken over then, so Home
+        // stayed on Dangbei's launcher for good (1.84, issue #1276, the reporter's log and exit
+        // info). The take-over still looks at the front first.
+        val stoppedOverStock = Build.VERSION.SDK_INT >= 24 && SystemClock.elapsedRealtime() >= BOOT_WINDOW_MS &&
+            SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime() < 60_000 &&
+            GuardSetup.stockHomeSinceHomeLeft(this) && GuardSetup.stockHomeSeenWithin(this, STOPPED_OVER_STOCK_MS)
         // Revived with the screen off (standby): the screen-on check takes over at wake.
         // Not gated on being the default Home: Skyworth/Coolita (8R145, Android 11) starts its own
         // launcher at boot whatever Home resolves to (issue #43). The take-over looks first, and
         // bringing Aerial back over itself changes nothing.
         if (!fastBootTakeOver && !appLeftInFront &&
-            (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS || revived || diedInFront) &&
+            (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS || revived || diedInFront || stoppedOverStock) &&
             getSystemService<PowerManager>()?.isInteractive == true
         ) {
             takeOverOnceSettled(
                 when {
                     revived -> "re-enabled after being switched off"
                     diedInFront -> "back after Aerial died in front"
+                    stoppedOverStock -> "back after Aerial was stopped over the stock launcher"
                     else -> "bound shortly after boot"
                 },
                 // Back from standby or a boot, not from a crash: the moment to open the input
                 // the owner wants the TV to start on.
-                woke = !diedInFront || revived,
+                woke = (!diedInFront && !stoppedOverStock) || revived,
             )
             if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) scheduleBootRechecks()
         }
@@ -1484,6 +1494,17 @@ class HomeGuardService : AccessibilityService() {
             goHome()
             return
         }
+        // A FallbackHome in front once the user is unlocked: Home went nowhere. On Formovie spiderman
+        // (Android 9, unlock heard only by polling) Home pressed in Aerial left Settings'
+        // FallbackHome on screen, and the guard, which keeps fallbacks out of stockHomes, did
+        // nothing; switching accessibility off and on brought Aerial back (issue #1213, the
+        // reporter's 1.83 log). The setup wizard's fallbacks are left alone.
+        if (isFallbackHomeScreen(pkg, cls) && !screenOff) {
+            if (SystemClock.uptimeMillis() - broughtBackAt < 1_000) return
+            DiagLog.i("guard: $pkg/$cls in front after the unlock; bringing Aerial back")
+            goHome()
+            return
+        }
         val allowed = SystemClock.uptimeMillis() < allowStockUntil
         if (pkg in stockHomes) {
             // Any of its screens, uncovered once the installer of an update from Control Center closed.
@@ -1529,8 +1550,10 @@ class HomeGuardService : AccessibilityService() {
             return
         }
         updateKeyFilter()
-        // Leaving the stock launcher for a real app ends the visit: Home goes to Aerial again.
-        if (allowed && pkg != packageName && isApp(pkg)) endStockVisit("$pkg in front")
+        // Leaving the stock launcher for a real app ends the visit: Home goes to Aerial again. Not
+        // while the stock launcher's own start is still on screen, where the firmware's SystemUI
+        // comes to the front for a moment and would end the visit before it began.
+        if (allowed && pkg != packageName && isApp(pkg) && !visitStillOpening()) endStockVisit("$pkg in front")
     }
 
     private var bannerView: android.view.View? = null
@@ -1579,6 +1602,10 @@ class HomeGuardService : AccessibilityService() {
     /** True for packages with a launcher entry, i.e. apps rather than system overlays and dialogs. */
     private fun isApp(pkg: String): Boolean =
         packageManager.getLeanbackLaunchIntentForPackage(pkg) != null || packageManager.getLaunchIntentForPackage(pkg) != null
+
+    /** Settings' FallbackHome (one of fallbackHomes, named so), not the setup wizard's; see onAccessibilityEvent. */
+    private fun isFallbackHomeScreen(pkg: String, cls: String): Boolean =
+        cls.endsWith(".FallbackHome") && (pkg to cls) in fallbackHomes && GuardSetup.isUserUnlocked(this)
 
     private fun isDefaultHome(): Boolean = resolvedHome() == packageName
 
@@ -1797,6 +1824,9 @@ class HomeGuardService : AccessibilityService() {
         private const val TAG = "AerialGuard"
         private const val BRING_BACK_REQUEST = 933
         private const val BOOT_WINDOW_MS = 3 * 60 * 1000L
+
+        /** How recently the stock launcher must have come up for a new process to count as stopped over it (issue #1276). */
+        private const val STOPPED_OVER_STOCK_MS = 2 * 60 * 1000L
         private const val UNLOCK_POLL_MS = 2_000L
         private const val UNLOCK_POLL_FOR_MS = 10 * 60 * 1000L
         private const val HOME_KEY_CHECK_MS = 1500L
@@ -1812,6 +1842,8 @@ class HomeGuardService : AccessibilityService() {
         private const val HOME_LEFT_MS = 5_000L
         private const val SETTLE_MS = 1500L
         private const val BOOT_STOCK_CAP_MS = 20_000L
+        /** How long the stock launcher's own start may show the firmware's SystemUI; see visitStillOpening. */
+        private const val STOCK_OPENING_MS = 2_000L
         private const val WAKE_WINDOW_MS = 15_000L
         private val BOOT_RECHECKS_MS = listOf(30_000L, 45_000L)
         private const val COVERED_UNSEEN_MS = 3_000L
@@ -2217,6 +2249,17 @@ class HomeGuardService : AccessibilityService() {
         @Volatile
         private var allowStockUntil = 0L
 
+        /**
+         * When that allowance was set. Starting the stock launcher shows the firmware's own
+         * SystemUI over Aerial for a moment — Xiaomi's com.xiaomi.mitv.systemui has a launch intent
+         * too, so it counts as an app — and ending the visit there left PatchWall in front with no
+         * allowance, taken away at once (MiTV-ANSP0, Android 9, issue #971, the reporter's log:
+         * "opened on purpose" 19:41:54.321, "visit over (com.xiaomi.mitv.systemui in front)"
+         * .563, "bringing Aerial back" .644).
+         */
+        @Volatile
+        private var allowStockFrom = 0L
+
         private fun endStockVisit(why: String) {
             if (allowStockUntil == 0L) return
             if (SystemClock.uptimeMillis() < allowStockUntil) DiagLog.i("guard: stock launcher visit over ($why)")
@@ -2225,9 +2268,15 @@ class HomeGuardService : AccessibilityService() {
 
         /** Lets the stock launcher stay in front until Aerial is back: the viewer opened it on purpose. */
         fun allowStockLauncher() {
-            allowStockUntil = SystemClock.uptimeMillis() + 60 * 60 * 1000L
+            val now = SystemClock.uptimeMillis()
+            allowStockUntil = now + 60 * 60 * 1000L
+            allowStockFrom = now
             DiagLog.i("guard: the stock launcher opened on purpose; leaving it in front")
         }
+
+        /** The visit has not begun yet while the stock launcher's own start is still on screen. */
+        private fun visitStillOpening(): Boolean =
+            SystemClock.uptimeMillis() - allowStockFrom < STOCK_OPENING_MS
 
         /** Whether Aerial's Home is resumed; set by MainActivity, in this same process. */
         @Volatile
