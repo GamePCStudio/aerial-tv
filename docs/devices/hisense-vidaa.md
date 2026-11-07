@@ -177,3 +177,11 @@ VIDAA_TV（MT9655，Android 14，固件 07.02.70.202605110330）上，报告人�
 - 诊断：`film glass copy=false copy_slow=true`，这台 PixelCopy 读得到但太慢，停用后每次暂停都走 `MediaMetadataRetriever`；日志里 4 次都是 `stops` 后 0.6–1 秒 `starts`，50–100 ms 内 `video wallpaper failed (ERROR_CODE_DECODING_FAILED)`。推测是读帧还占着硬件解码器时暂停的播放器恢复，解码失败；当时出错就删掉这部片子、换下一部，下一部出画面前一直黑。
 - 改法（`VideoWallpaper`）：不模糊首页的面板下只暂停不取帧；取帧优先在 App 里软件解码关键帧，MediaMetadataRetriever 只在播放器放开后用；出错先重试同一部、遮罩收起露出图片。
 - **没在海信上验证**：维护者手上没有这台。小米 MFTR0 上回归过：控制中心里暂停、恢复从原位置接着放；从控制中心进设置再回来，App 内解关键帧 0.5–0.7 秒，视频从那一帧的时间接着放；屏保来回不黑。
+
+## 海信 E8H（m7642，安卓 9，#1227）
+
+只读信息：`wm size` 1920x1080，唯一显示模式 1920x1080@60，面板和输出时序是 3840x2160（显示引擎在 SurfaceFlinger 之后放大 2 倍），`ro.his.tv.osd_video_separated=0`；4K 只走视频平面（侧带）。App 层改不了，不开 4K 画布。
+
+## U8E（HISIV810，安卓 8）冷启动紫屏（#1305，报告人实测，没有修）
+
+2019 款 ULED U8E：standard 版设成默认桌面、接着机顶盒 HDMI 时，冷启动后整屏紫色，显示驱动卡住；只有拔掉机顶盒 HDMI 并卸载 Aerial 才恢复（缺一不可），恢复出厂后再接管、冷启动又出现。共同因素是「第三方桌面参与开机时的显示初始化」+ HDMI 信号，具体原因不明，维护者没有这台。报告人之后只把 Aerial 当普通 App 用（不开无障碍、不给通知使用权、主页键不选 Aerial）。这台不要设默认桌面；guard 版有没有同样的问题没人试过。
