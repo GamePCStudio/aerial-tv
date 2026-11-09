@@ -20,9 +20,9 @@ android {
         // Android 4.0.
         minSdk = 14
         targetSdk = 34
-        // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.22.
-        versionCode = 116
-        versionName = "1.15"
+        // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.23.
+        versionCode = 117
+        versionName = "1.16"
     }
 
     // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);
@@ -95,6 +95,7 @@ val copySources by tasks.registering(Copy::class) {
     from(rootProject.file("app/src/main/java/app/orchard/tv/wallpaper/ScreensaverVideos.kt"))
     from(rootProject.file("app/src/main/java/app/orchard/tv/system/MitvPanel.kt"))
     from(rootProject.file("app/src/main/java/app/orchard/tv/system/DeviceProfile.kt"))
+    from(rootProject.file("app/src/main/java/app/orchard/tv/system/OutputDevice.kt"))
     into(sharedSources.map { it.dir("app/supeaerial/tv/lite") })
     // Into SuperHome's package; Compose's state and AndroidX's prefs.edit {} come from Lite's Shims.kt.
     filter { line ->
