@@ -12,14 +12,19 @@ data class NameGroup(val name: String, val packages: List<String>)
 
 /**
  * SuperHome's preset list: `superaerialappname.txt`, package name → the name shown on the tile, plus
- * preset folders. The same file in three places and one list built into the APK:
+ * preset folders. The same file in four places and one list built into the APK:
  *
  *  - the copy the owner edits on the TV: `/sdcard/tv/superaerialappname.txt`, or the app's own
  *    directory on external storage (no permission needed there, which makes it usable on new firmwares too);
- *  - the copy on our own site, refreshed at most every [CHECK_EVERY_MS] and kept in
- *    `files/super/appname.txt` so the TV still has it offline;
+ *  - the copy at whatever address the TV says, which is the next file below, fetched at most every
+ *    [CHECK_EVERY_MS] and kept in `files/super/appname.txt` so the TV still has it offline;
+ *  - the copy on our own site, [CLOUD], when the TV says nothing;
  *  - the copy packed in this APK (`assets/superaerialappname.txt`), so a TV with no network at all
  *    still gets the preset names.
+ *
+ * The address the middle copy comes from, in the order [fetch] takes it: a `url` line in the TV's own
+ * txt, else the first URL among the lines of `superaerialappname.url` next to it, else [CLOUD]. Writing
+ * that second file takes effect on the next tick of [refresh] rather than at the twelve-hour check.
  *
  * The names a person types themselves for one app (the phone page's rename, [AppNames]) outrank all
  * three: a preset list is a default for every TV, a typed name is this TV's choice. Above the list,
@@ -47,6 +52,8 @@ data class NameGroup(val name: String, val packages: List<String>)
 object SuperNames {
     private const val TAG = "SuperHome"
     private const val FILE = "superaerialappname.txt"
+    /** The TV's own address for the list: one file holding just a URL, next to the txt. */
+    private const val URL_FILE = "superaerialappname.url"
     /** The owner's own site; the copy in this repository is `site/superaerial/`, deployed by hand. */
     private const val CLOUD = "https://800915.xyz/superaerial/$FILE"
     private const val CHECK_EVERY_MS = 12 * 60 * 60 * 1000L
@@ -125,14 +132,37 @@ object SuperNames {
         val before = snapshot()
         readLocal()
         val now = System.currentTimeMillis()
-        if (now - prefs.getLong("checked_at", 0L) > CHECK_EVERY_MS && now - lastAttempt > RETRY_MS) fetch(now)
+        val url = local.url ?: tvUrl()
+        // An address newly written on the TV takes effect at once; an unchanged one waits for the check.
+        if ((url != prefs.getString("fetched_url", null) || now - prefs.getLong("checked_at", 0L) > CHECK_EVERY_MS) &&
+            now - lastAttempt > RETRY_MS
+        ) fetch(url, now)
         return snapshot() != before
     }
 
-    /** The downloaded list, kept on the TV so it still has it offline. Fetched over HTTPS, then plain HTTP. */
-    private fun fetch(now: Long) {
+    /**
+     * The address written on the TV: the first line of `superaerialappname.url` that is one. No such
+     * file, or none in it, leaves the site's own address standing.
+     */
+    private fun tvUrl(): String? {
+        val file = candidates(URL_FILE).firstOrNull { it.exists() } ?: return null
+        val text = runCatching { decode(file.readBytes()) }
+            .onFailure { Log.w(TAG, "could not read $file", it) }.getOrNull() ?: return null
+        val url = text.lineSequence().map { it.trim() }
+            .firstOrNull { it.startsWith("http://") || it.startsWith("https://") }
+        if (url == null) Log.w(TAG, "$file holds no address; using the built-in one")
+        return url
+    }
+
+    /**
+     * The downloaded list, kept on the TV so it still has it offline. [chosen] is what the TV's own
+     * files say, where null is [CLOUD]. Fetched over HTTPS, then plain HTTP.
+     */
+    private fun fetch(chosen: String?, now: Long) {
         lastAttempt = now
-        val url = local.url ?: CLOUD
+        val url = chosen ?: CLOUD
+        // Noted here rather than only on success, so an address that does not answer is not retried every start.
+        prefs.edit().putString("fetched_url", chosen).apply()
         val into = File(cacheFile.parentFile, "appname.new")
         val got = runCatching { Net.download(url, into) }
             // Android 4.x does not always trust the certificate on the wire; the site answers over
@@ -158,6 +188,7 @@ object SuperNames {
             return
         }
         cloud = parsed
+        Log.i(TAG, "the list came from $url: ${parsed.names.size} names, ${parsed.groups.size} folders, ${parsed.top.size} pinned")
         runCatching { cacheFile.writeBytes(bytes) }.onFailure { Log.w(TAG, "could not keep the downloaded list", it) }
         prefs.edit().putLong("checked_at", now).apply()
     }
@@ -190,20 +221,21 @@ object SuperNames {
     }
 
     /**
-     * The list on this TV, if there is one. `/sdcard/tv/` first, because that is where the owner
-     * puts it; then the app's own directory on external storage, which needs no permission and so
-     * also works on a firmware that keeps /sdcard shut.
+     * The list on this TV, if there is one; gone again, its layer goes empty with it.
+     * `/sdcard/tv/` first, because that is where the owner puts it; then the app's own directory on
+     * external storage, which needs no permission and so also works on a firmware that keeps /sdcard shut.
      */
-    private fun localFile(): File? = candidates().firstOrNull { it.exists() }
+    private fun localFile(): File? = candidates(FILE).firstOrNull { it.exists() }
 
+    /** Where the owner's own files live on this TV, best first: the txt, and the `.url` beside it. */
     @android.annotation.SuppressLint("SdCardPath")
-    private fun candidates(): List<File> = buildList {
+    private fun candidates(name: String): List<File> = buildList {
         val storage = runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
-        if (storage != null) add(File(storage, "tv/$FILE"))
+        if (storage != null) add(File(storage, "tv/$name"))
         // The path the owner is told to use, kept beside the real one for the firmwares whose
         // getStorageDirectory() points somewhere else while /sdcard still holds the files.
-        add(File("/sdcard/tv", FILE))
-        runCatching { context.getExternalFilesDir(null) }.getOrNull()?.let { add(File(it, FILE)) }
+        add(File("/sdcard/tv", name))
+        runCatching { context.getExternalFilesDir(null) }.getOrNull()?.let { add(File(it, name)) }
     }
 
     /** UTF-8, or GBK when the bytes are not UTF-8 (Windows Notepad in China saves that way). */
