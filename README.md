@@ -65,6 +65,7 @@
 | **小米 / Redmi** | 设置 → 关于 → 连续按「产品型号/产品类型」进入开发者模式，再到 设置 → 账号与安全，打开「ADB 调试」和「安装未知来源的应用」 |
 | **TCL / 雷鸟** | 设置 → 关于 → 本机信息，快速按遥控器「上下左右」，在底部的「更多」里打开 ADB |
 | **海尔 / 模卡** | 按电视机身上的信号源键，再用遥控器按「左左上右」，在工厂菜单里打开「ADB 调试开关」，别动其他选项 |
+| **海信 / Vidda** | 设置 → 声音，关闭杜比全景声；在 专业音响设置 → 声音平衡 里快速交替按「确认」「菜单」，左上角出现 M 后按「菜单」进工厂菜单，把「选项」里的 To Fac 从 U 改成 M 后重启，别动其他选项；再到 设置 → 全部设置，连按「菜单」打开原生设置，连按版本号后在开发者选项里打开「USB 调试」和「无线调试」。工厂菜单按错有风险，反复改 To Fac 可能让 USB 失灵、要重置电视，只改一次（[详细](docs/devices/adb-by-brand.md)） |
 | **OPPO（含 S1）** | 设置 → 系统 → 关于本机 → 设备型号，按「上上右右」再按确认；再到 设置 → 系统 → 开发者选项，打开「USB 调试」。IP 在 设置 → 网络 → 已连接的网络 最下面 |
 | **其他 Android TV** | 设置 → 设备偏好设置 → 关于 → 连按「内部版本号」7 次，再在开发者选项里打开「USB 调试」 |
 
@@ -254,6 +255,7 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 乐视 | 超4 X55（f608） | Android 6 | ✅ 安装、开机自启、主页键接管；切到别的应用约 4 秒后被强停、返回先回原桌面约 4 秒；开机有固件原生广告（[笔记](docs/devices/letv-x4-55.md)、[#510](https://github.com/pengchujin/aerial-tv/issues/510)） |
 | 乐视 | 超3 X65（X65-168CQ） | Android 5.0.1 | ⚠️ 能装能显示；按主页键时系统会强杀第三方桌面，接管不稳定（[笔记](docs/devices/letv-x3-65.md)） |
 | 海信 / Vidda | VIDAA 各型号 | Android 5–14 | ⚠️ 主页键能接管，开机多数先进聚好看；VIDAA C1 投影接管不了（[笔记](docs/devices/hisense-vidaa.md)） |
+| 海信 | 27GX 显示器（MT9655） | Android 14 | ✅ 开 ADB 要先在工厂菜单里把 To Fac 设成 M；界面按 1080p 绘制（[#1466](https://github.com/pengchujin/aerial-tv/issues/1466) [#1461](https://github.com/pengchujin/aerial-tv/issues/1461)） |
 | 海信 | 65E52D | Android 8 | ✅ 开机直接进 Aerial（[#672](https://github.com/pengchujin/aerial-tv/issues/672)） |
 | 海信 | 75E3F（VIDAA_TV，n62016） | Android 9 | ✅ 开机直接进 Aerial（[#847](https://github.com/pengchujin/aerial-tv/issues/847)） |
 | 海信 | E5Q Pro | Android 11 | ✅（[#790](https://github.com/pengchujin/aerial-tv/issues/790)） |
@@ -282,6 +284,7 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 当贝 | 盒子 Max1、H5，哈趣 K2（当贝 OS） | Android 9 | ✅ |
 | 当贝 | H3S 盒子（RK3566） | Android 11 | ⚠️ 固件按主页键时强停第三方 App，Aerial 要 7–12 秒才回来（[#849](https://github.com/pengchujin/aerial-tv/issues/849)） |
 | 当贝 | 盒子 Max1（DBBOX5C） | Android 11 | ⚠️ 和 H3S 一样，固件按主页键时强停第三方 App，Aerial 约 10 秒才回来（[#1245](https://github.com/pengchujin/aerial-tv/issues/1245)） |
+| 当贝 | DBX5S Pro 投影（MT5879） | Android 11 | ⚠️ 待机后整机断网；冷启动先停在电视信号源界面，按主页键回 Aerial（[#1453](https://github.com/pengchujin/aerial-tv/issues/1453) [#1454](https://github.com/pengchujin/aerial-tv/issues/1454)） |
 | 当贝 | F3 投影仪 | Android 6 | ⚠️ 固件 V2.1.5.2 上全部正常（[#1145](https://github.com/pengchujin/aerial-tv/issues/1145)）；之后的固件不让第三方当桌面，也没有无障碍服务（[#789](https://github.com/pengchujin/aerial-tv/issues/789)） |
 | 中国移动 | CM101s 盒子（Hi3798MV100） | Android 4.4.2 | ✅ Aerial Lite，一行命令安装（[#1052](https://github.com/pengchujin/aerial-tv/issues/1052)） |
 | 坚果 | S621 | Android 13 | ❌ 固件不让写无障碍设置，主页键接管不了（[#793](https://github.com/pengchujin/aerial-tv/issues/793)） |

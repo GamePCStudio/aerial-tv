@@ -67,6 +67,7 @@ The menus on Chinese firmware are in Chinese; their names are in brackets.
 | **Xiaomi / Redmi** | Settings (设置) → About (关于) → press Model (产品型号) until developer mode is on, then Settings → Account & Security (账号与安全): turn on ADB debugging (ADB 调试) and Install unknown apps (安装未知来源的应用) |
 | **TCL / FFALCON** | Settings (设置) → About (关于) → Device info (本机信息), quickly press Up Down Left Right, then turn on ADB under More (更多) |
 | **Haier / MOOKA** | Press Source on the TV itself, then Left Left Up Right on the remote; in the factory menu turn on ADB 调试开关 and change nothing else |
+| **Hisense / Vidda** | Settings (设置) → Sound (声音): turn off Dolby Atmos (杜比全景声). In Pro audio settings (专业音响设置) → Balance (声音平衡), quickly alternate OK and Menu until an M shows at the top left, then press Menu for the factory menu. Under Options (选项) change To Fac from U to M, change nothing else, and restart. Then Settings → All settings (全部设置): press Menu repeatedly for the stock Android settings, press Build 7 times, and turn on USB debugging and Wireless debugging in Developer options. The factory menu is risky if pressed wrong, and changing To Fac repeatedly can stop USB working until the TV is reset: change it once ([details](docs/devices/adb-by-brand.md)) |
 | **OPPO (S1 included)** | Settings (设置) → System (系统) → About (关于本机) → Model (设备型号), press Up Up Right Right, then OK. Then Settings → System → Developer options (开发者选项): turn on USB debugging (USB 调试). The IP address is at the bottom of Settings → Network → the connected network |
 | **Other Android TVs** | Settings → Device Preferences → About → press Build 7 times, then turn on USB debugging in Developer options |
 
@@ -256,6 +257,7 @@ Most TVs sold in China only accept their own home screen and clear third-party a
 | LeTV | Super4 X55 (f608) | Android 6 | ✅ Installs, starts at boot, takes over Home; force-stopped ~4 s after switching apps, Back shows the stock launcher for ~4 s; the native boot ad remains ([notes](docs/devices/letv-x4-55.md), [#510](https://github.com/pengchujin/aerial-tv/issues/510)) |
 | LeTV | Super3 X65 (X65-168CQ) | Android 5.0.1 | ⚠️ Installs and draws; the firmware kills third-party launchers on Home, so takeover is unreliable ([notes](docs/devices/letv-x3-65.md)) |
 | Hisense / Vidda | VIDAA models | Android 5–14 | ⚠️ Home works, most boot into Hisense's home first; VIDAA C1 projector can't be taken over ([notes](docs/devices/hisense-vidaa.md)) |
+| Hisense | 27GX monitor (MT9655) | Android 14 | ✅ ADB needs To Fac set to M in the factory menu first; the UI is drawn at 1080p ([#1466](https://github.com/pengchujin/aerial-tv/issues/1466) [#1461](https://github.com/pengchujin/aerial-tv/issues/1461)) |
 | Hisense | 65E52D | Android 8 | ✅ Boots straight into Aerial ([#672](https://github.com/pengchujin/aerial-tv/issues/672)) |
 | Hisense | 75E3F (VIDAA_TV, n62016) | Android 9 | ✅ Boots straight into Aerial ([#847](https://github.com/pengchujin/aerial-tv/issues/847)) |
 | Hisense | E5Q Pro | Android 11 | ✅ ([#790](https://github.com/pengchujin/aerial-tv/issues/790)) |
@@ -283,6 +285,7 @@ Most TVs sold in China only accept their own home screen and clear third-party a
 | Dangbei | Box Max1, H5, HAQU K2 (Dangbei OS) | Android 9 | ✅ |
 | Dangbei | H3S box (RK3566) | Android 11 | ⚠️ The firmware stops third-party apps on Home; Aerial comes back after 7–12 s ([#849](https://github.com/pengchujin/aerial-tv/issues/849)) |
 | Dangbei | Box Max1 (DBBOX5C) | Android 11 | ⚠️ Like the H3S, the firmware stops third-party apps on Home; Aerial comes back after about 10 s ([#1245](https://github.com/pengchujin/aerial-tv/issues/1245)) |
+| Dangbei | DBX5S Pro projector (MT5879) | Android 11 | ⚠️ The network goes down in standby; a cold boot stops on the TV input screen until Home is pressed ([#1453](https://github.com/pengchujin/aerial-tv/issues/1453) [#1454](https://github.com/pengchujin/aerial-tv/issues/1454)) |
 | Dangbei | F3 projector | Android 6 | ⚠️ Everything works on firmware V2.1.5.2 ([#1145](https://github.com/pengchujin/aerial-tv/issues/1145)); later firmware refuses third-party launchers and has no accessibility service ([#789](https://github.com/pengchujin/aerial-tv/issues/789)) |
 | China Mobile | CM101s box (Hi3798MV100) | Android 4.4.2 | ✅ Aerial Lite, installed with the one-line command ([#1052](https://github.com/pengchujin/aerial-tv/issues/1052)) |
 | JMGO | S621 | Android 13 | ❌ The firmware refuses writes to the accessibility setting; Home cannot be taken over ([#793](https://github.com/pengchujin/aerial-tv/issues/793)) |
