@@ -10,4 +10,11 @@
     <string name="sh_icon_type_hint">长方形：用 Aerial 的磁贴美术，取 App 自带的电视横幅，每排 4–6 个。正方形：用 App 自己的安卓标准图标，每排 5–8 个。</string>
 
     <string name="folder_system">系统应用</string>
+
+    <!-- 个性化最下方那一行：把手工名单再强制生效一次。 -->
+    <string name="sh_preset_force">强制APP重分组和APP重命名</string>
+    <string name="sh_preset_run">现在执行</string>
+    <string name="sh_preset_force_hint">按名单（电视上的文件 > 云端 > APK 内置；手机上改过的名字仍然优先）给这台电视所有 App 重新分组、重命名一次。之后自己挪动的磁贴不会被挪回。</string>
+    <string name="sh_preset_running">正在读名单…</string>
+    <string name="sh_preset_done">已把 %1$d 个 App 放进预设文件夹，%2$d 个 App 用名单上的名字</string>
 </resources>

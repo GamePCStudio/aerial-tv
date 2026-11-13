@@ -339,26 +339,11 @@ class HomeActivity : Activity(), HomeView.Host {
         // Every app Kids and Elders mode can show: Home's with each folder's in its place, then the hidden ones.
         kidsCandidates = arranged.home.flatMap { e -> e.folder?.let { arranged.folders[it.id].orEmpty() } ?: listOf(e) } + arranged.hidden
         if (Kids.enabled) Kids.notePackages(kidsCandidates.filter { it.key in Kids.allowed }.mapTo(HashSet()) { it.component.packageName })
-        home.setApps(if (Kids.active) Kids.allowed.mapNotNull { k -> kidsCandidates.firstOrNull { it.key == k } } else leadPinned(arranged.home))
+        home.setApps(if (Kids.active) Kids.allowed.mapNotNull { k -> kidsCandidates.firstOrNull { it.key == k } } else arranged.home)
         (panels.lastOrNull() as? FolderView)?.let { open ->
             val inside = folderApps[open.folderId]
             if (inside.isNullOrEmpty()) closePanel() else open.setApps(inside)
         }
-    }
-
-    /**
-     * SuperHome: the preset list's `top` packages lead the grid, in the order the list gives them;
-     * every other tile keeps the place the saved arrangement gives it. A tile whose folder holds one
-     * of them leads with it. Nothing is written to the arrangement, so dropping a package from the
-     * list puts that tile back where it was moved rather than at the start.
-     */
-    private fun leadPinned(tiles: List<AppEntry>): List<AppEntry> {
-        val top = SuperNames.tops()
-        if (top.isEmpty()) return tiles
-        fun rank(tile: AppEntry): Int? = tile.folder
-            ?.let { f -> folderApps[f.id].orEmpty().firstNotNullOfOrNull { top.indexOf(it.key).takeIf { i -> i >= 0 } } }
-            ?: top.indexOf(tile.key).takeIf { it >= 0 }
-        return tiles.sortedBy { rank(it) ?: top.size }
     }
 
     /** A folder's picture, made again only when what it shows changes. */
@@ -580,7 +565,28 @@ class HomeActivity : Activity(), HomeView.Host {
                 else whenUnlocked { LiteSettings.choosePin(null); Kids.chooseEnabled(false); refreshPersonalize() }
             },
             onKids = ::setUpKids,
+            onForce = ::forcePresets,
         ))
+    }
+
+    /**
+     * SuperHome's one-shot: the preset list read again — the TV's own file, then the cloud copy when
+     * it is due — and its folders and names applied to every app on this TV, not only the ones first
+     * seen since. Reading takes the network, so it happens off the main thread; the tiles go on
+     * screen again from here.
+     */
+    private fun forcePresets() {
+        Toast.makeText(this, getString(R.string.sh_preset_running), Toast.LENGTH_SHORT).show()
+        work.execute {
+            runCatching { SuperNames.refresh() }
+            handler.post {
+                if (isFinishing) return@post
+                val filed = SuperSeed.force(this, layout, all, hiddenApps.mapTo(HashSet()) { it.key })
+                val named = all.count { SuperNames.name(it.key) != null }
+                arrange()
+                Toast.makeText(this, getString(R.string.sh_preset_done, filed, named), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun refreshPersonalize() { (panels.lastOrNull() as? Personalize)?.refreshChips() }

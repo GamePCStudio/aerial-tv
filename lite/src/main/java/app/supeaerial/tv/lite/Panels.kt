@@ -420,6 +420,7 @@ class TileMenu(context: Context, close: () -> Unit, title: String, anchor: RectF
  * remote feels, the screensaver, the weather, the parental PIN) with a note under each that
  * follows the focused row; on the right, the QR code of the phone page. Rows that only some
  * choices have come and go, so the rows are made again after every choice, focus kept in place.
+ * The last row is a one-shot: it applies the preset list to this TV again.
  */
 class Personalize(
     context: Context,
@@ -432,6 +433,7 @@ class Personalize(
     private val onSaverNow: () -> Unit,
     private val onPin: (Boolean) -> Unit,
     private val onKids: () -> Unit = {},
+    private val onForce: () -> Unit = {},
 ) : Sheet(context, close) {
     private val col = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -616,6 +618,13 @@ class Personalize(
                 else -> R.string.kids_kind_elders
             }), { false }, Glyph.ChevronRight).apply { action = onKids }
             settingRow(R.string.st_kids, string(R.string.st_kids_hint), listOf(kids))
+        }
+
+        // The one-shot at the very bottom: SuperHome's own, the preset list applied again by hand.
+        col.add(space(context, 10f))
+        group {
+            val run = Chip(context, string(R.string.sh_preset_run), { false }, Glyph.ChevronRight).apply { action = onForce }
+            settingRow(R.string.sh_preset_force, string(R.string.sh_preset_force_hint), listOf(run))
         }
     }
 

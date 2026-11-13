@@ -13,4 +13,11 @@
 
     <!-- SuperHome's preset folder for the apps on the system image. -->
     <string name="folder_system">System apps</string>
+
+    <!-- SuperHome's last Personalize row: the preset list applied again, by hand. -->
+    <string name="sh_preset_force">Force app regrouping and renaming</string>
+    <string name="sh_preset_run">Run now</string>
+    <string name="sh_preset_force_hint">Files and names every app on this TV by the list — the TV\'s own file first, then the cloud copy, then the built-in one; a name typed on the phone still wins. Tiles you move afterwards stay where you moved them.</string>
+    <string name="sh_preset_running">Reading the list…</string>
+    <string name="sh_preset_done">%1$d apps filed into preset folders, %2$d named from the list</string>
 </resources>
