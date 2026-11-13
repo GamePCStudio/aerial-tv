@@ -132,19 +132,20 @@ object SystemProbe {
      * on MT5879 (Android 11, 1.41), as on the reporter's m7221 (Android 8). Up to 1.40 the flag was
      * there for MT5879, where it had seemed that only a shown bar reached the amplifier.
      * [fromKey]: the guard repeating a held volume key (HomeGuardService.takeVolumeKey), which
-     * shows TCL's bar as the key itself does.
+     * shows TCL's bar as the key itself does. [showUi]: a step for a key the firmware did nothing
+     * with, which would have shown Android's bar (issue #1498).
      */
-    private fun volumeFlags(context: Context, fromKey: Boolean) =
-        if (fromKey && isInstalled(context, "com.tcl.settings")) AudioManager.FLAG_SHOW_UI else 0
+    private fun volumeFlags(context: Context, fromKey: Boolean, showUi: Boolean = false) =
+        if (showUi || (fromKey && isInstalled(context, "com.tcl.settings"))) AudioManager.FLAG_SHOW_UI else 0
 
     /**
      * TCL tcl_m7642 (雷鸟 65S515D, Android 9) has adjustStreamVolume note the change in battery stats,
      * which needs a system permission: it threw and Control Center crashed at the first step (issue
      * #15). Setting the level is the way left there.
      */
-    fun adjustVolume(context: Context, direction: Int, fromKey: Boolean = false) {
+    fun adjustVolume(context: Context, direction: Int, fromKey: Boolean = false, showUi: Boolean = false) {
         val am = context.getSystemService<AudioManager>() ?: return
-        val flags = volumeFlags(context, fromKey)
+        val flags = volumeFlags(context, fromKey, showUi)
         try {
             am.adjustStreamVolume(
                 AudioManager.STREAM_MUSIC,
@@ -304,7 +305,22 @@ object SystemProbe {
         resolvable(context, Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
 
     private fun resolvable(context: Context, intent: Intent): Intent? =
-        intent.takeIf { context.packageManager.resolveActivity(it, 0) != null }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.takeIf { startable(context, it) }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    /**
+     * Whether [intent] resolves to an activity Aerial may start: exported, and any permission it
+     * asks for held. Haier's settings (com.haier.tv.menusetting/.RootActivity) resolve on the
+     * Huanglong-based 统帅 L65F8 (Android 12) but ask for com.huanglong.permission.COMMON_PERMISSION,
+     * signature|privileged, so the start threw and Control Center said the TV had no settings,
+     * though candidates after it were there (issue #1388, the reporter's dexdump and adb).
+     */
+    private fun startable(context: Context, intent: Intent): Boolean {
+        val info = context.packageManager.resolveActivity(intent, 0)?.activityInfo ?: return false
+        if (info.packageName == context.packageName) return true
+        if (!info.exported) return false
+        val permission = info.permission ?: return true
+        return context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    }
 
     /**
      * The network page and, after it, the ones to try if it closes at once. Xiaomi MiTV-ANSP0
@@ -716,11 +732,20 @@ object SystemProbe {
         )
     }.isSuccess
 
+    /**
+     * Tianci's system service, which answers the remote's input key with the firmware's own source
+     * page and lets the key through to Aerial too: both pages came up (Panasonic TH-55HX560C, a
+     * Skyworth build, m7221, Android 8, issue #1468; older Coocaa show their SOURCE_DIALOG on the
+     * same key, #519 #582).
+     */
+    fun tianciInputPanel(context: Context): Boolean = runCatching {
+        context.packageManager.getPackageInfo("com.tianci.system", 0)
+    }.isSuccess
+
     private fun firstResolvable(context: Context, vararg intents: Intent): Intent {
-        val pm = context.packageManager
         // Not Intent.resolveActivity: it returns an explicit component unchecked, so Xiaomi's
         // component was picked on TCL too, where it does not exist.
-        return (intents.firstOrNull { pm.resolveActivity(it, 0) != null } ?: intents.last())
+        return (intents.firstOrNull { startable(context, it) } ?: intents.last())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .let { settingsLaunchIntent(context, it) }
     }
@@ -732,6 +757,7 @@ object SystemProbe {
         return intents
             .filter { intent ->
                 val info = pm.resolveActivity(intent, 0)?.activityInfo ?: return@filter false
+                if (!startable(context, intent)) return@filter false
                 seen.add("${info.packageName}/${info.name}")
             }
             .ifEmpty { listOf(intents.last()) }
@@ -825,7 +851,7 @@ object SystemProbe {
                     ?: tclPlayer?.takeIf { info.id.startsWith(TCL_INPUTS) }?.let { tclRoute(it, kind, label, hw(info.id)) }
                     ?: generic.takeIf { resolves(context, it) }
                     ?: droidLogicRoute(context, info)
-                    ?: jmgoRoute(context, info)
+                    ?: jmgoRoute(context, info, label)
                     ?: tclPlayer?.let { tclRoute(it, kind, label, hw(info.id)) }
                     ?: generic
                 val device = cec
@@ -900,10 +926,22 @@ object SystemProbe {
      * after. JMGO S60 (Amlogic T968, Android 5.1.1): HDMI3 opened, the reporter's patched build and
      * `am start` (issue #1347).
      */
-    private fun jmgoRoute(context: Context, info: TvInputInfo): Intent? {
+    private fun jmgoRoute(context: Context, info: TvInputInfo, label: String): Intent? {
         if (info.type != TvInputInfo.TYPE_HDMI) return null
-        val port = JMGO_PORT.find(info.id)?.groupValues?.get(1) ?: return null
-        val intent = Intent().setComponent(ComponentName(JMGO_TV, "$JMGO_TV.AmlogicTvActivity"))
+        JMGO_PORT.find(info.id)?.groupValues?.get(1)?.let { return jmgoActivity(context, "AmlogicTvActivity", it) }
+        // JMGO H931 (MediaTek mt5889, Android 11): MediaTek's .hdmi.HDMIInputService/HW5-8, and the
+        // TV app's MainActivity takes the same extra, then tunes the port's CEC child in its
+        // TvActivity, which is not exported (issue #1481, the reporter's agent with adb). The port
+        // is the digit in the firmware's label (HDMI 2), else MediaTek's HW5 for HDMI 1.
+        if (!info.id.startsWith(MTK_HDMI)) return null
+        val port = HDMI_DIGIT.find(label)?.groupValues?.get(1)
+            ?: hw(info.id)?.minus(4)?.takeIf { it in 1..4 }?.toString()
+            ?: return null
+        return jmgoActivity(context, "MainActivity", port)
+    }
+
+    private fun jmgoActivity(context: Context, activityName: String, port: String): Intent? {
+        val intent = Intent().setComponent(ComponentName(JMGO_TV, "$JMGO_TV.$activityName"))
             .putExtra("inputSrc", "HDMI$port")
         val activity = runCatching { context.packageManager.getActivityInfo(intent.component!!, 0) }.getOrNull() ?: return null
         return intent.takeIf {
@@ -914,6 +952,8 @@ object SystemProbe {
 
     private const val JMGO_TV = "com.jmgo.tv"
     private val JMGO_PORT = Regex("""\.Hdmi(\d)InputService/""")
+    private const val MTK_HDMI = "com.mediatek.tvinput/.hdmi.HDMIInputService/"
+    private val HDMI_DIGIT = Regex("""^HDMI\s*(\d)""", RegexOption.IGNORE_CASE)
 
     private fun resolves(context: Context, intent: Intent) =
         runCatching { context.packageManager.resolveActivity(intent, 0) != null }.getOrDefault(false)
