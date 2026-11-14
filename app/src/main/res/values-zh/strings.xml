@@ -48,7 +48,11 @@
     <string name="menu_back">返回</string>
     <string name="folder_default">文件夹</string>
     <string-array name="folder_names">
-        <item>系统应用</item>
+        <item>电视直播</item>
+        <item>卡拉OK</item>
+        <item>4K全景声网盘会员</item>
+        <item>免会员免扫码</item>
+        <item>短剧漫剧</item>
         <item>影视</item>
         <item>音乐</item>
         <item>游戏</item>

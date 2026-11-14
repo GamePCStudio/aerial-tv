@@ -41,13 +41,20 @@ abstract class Control(context: Context) : View(context) {
     protected fun fit(text: String, p: TextPaint, room: Float) = TextUtils.ellipsize(text, p, room, TextUtils.TruncateAt.END).toString()
 }
 
-/** Overlays.MenuRow: a glyph, a label, maybe a value on the right; 44 high, corners 12. */
-class MenuRow(context: Context, private val glyph: Glyph, var text: String, var trailing: String? = null, private val destructive: Boolean = false) : Control(context) {
+/**
+ * Overlays.MenuRow: a glyph, a label, maybe a value on the right; [units] high (44 as the full app
+ * has it), corners 12. A page with many rows — the folder names — takes a shorter one so they all
+ * fit the screen, which a menu has no way of scrolling.
+ */
+class MenuRow(
+    context: Context, private val glyph: Glyph, var text: String, var trailing: String? = null,
+    private val destructive: Boolean = false, private val units: Float = 44f,
+) : Control(context) {
     private val label = TextPaint(Ui.text(14f, 500))
     private val value = TextPaint(Ui.text(13f, 500))
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) =
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), Ui.pxi(44f))
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), Ui.pxi(units))
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
