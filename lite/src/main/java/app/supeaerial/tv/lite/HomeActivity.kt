@@ -437,8 +437,8 @@ class HomeActivity : Activity(), HomeView.Host {
         fun add(glyph: Glyph, text: Int, trailing: String? = null, destructive: Boolean = false, action: () -> Unit) {
             rows += MenuRow(this, glyph, getString(text), trailing, destructive).apply { this.action = action }
         }
-        fun addText(glyph: Glyph, text: String, units: Float = 44f, action: () -> Unit) {
-            rows += MenuRow(this, glyph, text, units = units).apply { this.action = action }
+        fun addText(glyph: Glyph, text: String, action: () -> Unit) {
+            rows += MenuRow(this, glyph, text).apply { this.action = action }
         }
         var title = app.label
         when (page) {
@@ -486,13 +486,10 @@ class HomeActivity : Activity(), HomeView.Host {
             MenuPage.Rename -> {
                 title = getString(R.string.menu_rename_folder)
                 val current = folder?.name
-                // The folder's own name first, ticked, so OK on it changes nothing. The preset names
-                // are eleven, and this page is one row each: at the usual 44 units the last row falls
-                // off a 1080p screen (540 units, and a menu cannot scroll), so the name rows are cut to
-                // 38 — 76 px against 88, and 506 units for the tallest of them, name included.
+                // The folder's own name first, ticked, so OK on it changes nothing.
                 val names = resources.getStringArray(R.array.folder_names).toList()
                 for (name in listOfNotNull(current) + names.filter { it != current }) {
-                    addText(if (name == current) Glyph.Check else Glyph.Pencil, name, 38f) {
+                    addText(if (name == current) Glyph.Check else Glyph.Pencil, name) {
                         closeMenu()
                         folder?.let { layout.renameFolder(it.id, name); arrange() }
                     }
@@ -509,16 +506,11 @@ class HomeActivity : Activity(), HomeView.Host {
         if (panels.lastOrNull() is TileMenu) closePanel()
     }
 
-    /**
-     * As the full app's putInFolder: a new folder is named after what the app is, numbered when taken.
-     * SuperHome: a firmware app's folder takes [R.string.folder_system], the very name the preset
-     * list's seeding and the forced pass file apps under, so a long press joins that folder instead of
-     * opening a second one beside it. The candidate list of folder names is the rename page's, and
-     * starts with the categories an owner files by now rather than with this one.
-     */
+    /** As the full app's putInFolder: a new folder is named after what the app is, numbered when taken. */
     private fun putInFolder(app: AppEntry, id: String?) {
+        val names = resources.getStringArray(R.array.folder_names)
         // Firmware apps are what most folders on a TV are for.
-        val base = if (!app.removable) getString(R.string.folder_system) else getString(R.string.folder_default)
+        val base = if (!app.removable) names[0] else getString(R.string.folder_default)
         val taken = layout.folders().map { it.name }.toSet()
         val name = generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it !in taken }
         layout.putInFolder(app.key, id, name)
