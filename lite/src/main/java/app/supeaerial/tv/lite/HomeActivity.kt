@@ -55,6 +55,15 @@ class HomeActivity : Activity(), HomeView.Host {
     /** The key whose press woke the screensaver: its repeats and release are not for Home. */
     private var swallow = -1
 
+    /**
+     * The only way onto [work]: `onDestroy` closes the pool, and a task submitted after that (a
+     * weather fetch, the wallpaper decode, the daily or 30-minute retry landing on the main thread
+     * late) throws RejectedExecutionException there and kills Home.
+     */
+    private fun submit(task: () -> Unit) {
+        if (!work.isShutdown && !isFinishing) work.execute { task() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.init(this)
@@ -139,7 +148,7 @@ class HomeActivity : Activity(), HomeView.Host {
         showNetwork()
         showWeather()
         refreshDaily()
-        Weather.refreshIfStale({ work.execute(it) }) { handler.post { showWeather() } }
+        Weather.refreshIfStale({ r -> submit { r.run() } }) { handler.post { showWeather() } }
         resetIdle()
         if (SystemIntents.settingsBounced(this)) handler.postDelayed({
             if (resumed && hasWindowFocus()) SystemIntents.showXiaomiSettingsPopup(this)
@@ -209,9 +218,9 @@ class HomeActivity : Activity(), HomeView.Host {
     override fun minute() { if (resumed && Wallpapers.rotationDue()) loadBackdrop() }
 
     private fun loadBackdrop() {
-        work.execute {
+        submit {
             val b = runCatching { Wallpapers.load() }
-                .onFailure { Log.w(TAG, "wallpaper ${Wallpapers.selectedId}", it) }.getOrNull() ?: return@execute
+                .onFailure { Log.w(TAG, "wallpaper ${Wallpapers.selectedId}", it) }.getOrNull() ?: return@submit
             val grid = Images.tinted(b.frost, PLATE_TINT)
             handler.post {
                 if (isFinishing) return@post
@@ -238,10 +247,10 @@ class HomeActivity : Activity(), HomeView.Host {
         if (!retry && SystemClock.elapsedRealtime() - dailyCheckedAt < 3 * 60 * 60 * 1000L && dailyCheckedAt != 0L) return
         dailyCheckedAt = SystemClock.elapsedRealtime()
         handler.removeCallbacks(dailyRetry)
-        work.execute {
+        submit {
             if (!Wallpapers.refreshDaily()) {
-                if (Wallpapers.dailyFailed) handler.post { if (!isFinishing) handler.postDelayed(dailyRetry, DAILY_RETRY_MS) }
-                return@execute
+                if (Wallpapers.dailyFailed) handler.post { if (!isFinishing && !work.isShutdown) handler.postDelayed(dailyRetry, DAILY_RETRY_MS) }
+                return@submit
             }
             handler.post {
                 Wallpapers.rebuildList()
@@ -263,7 +272,7 @@ class HomeActivity : Activity(), HomeView.Host {
 
     private fun loadApps() {
         loadedFaceKey = AppCatalog.faceKey
-        work.execute {
+        submit {
             val started = System.currentTimeMillis()
             // Home first, with stand-ins for tiles not made yet; then the real ones as they come.
             val first = AppCatalog.load(this, quick = true)
@@ -306,14 +315,14 @@ class HomeActivity : Activity(), HomeView.Host {
             if (!connected) return
             // What failed before the network was there (issue #1443).
             if (Wallpapers.dailyFailed) refreshDaily(networkUp = true)
-            Weather.refreshIfStale({ work.execute(it) }, networkUp = true) { handler.post { showWeather() } }
+            Weather.refreshIfStale({ r -> submit { r.run() } }, networkUp = true) { handler.post { showWeather() } }
         }
     }
 
     private val dailyRetry = Runnable { refreshDaily() }
 
     private fun showNetwork() {
-        work.execute {
+        submit {
             val net = ControlCenter.network(this)
             handler.post {
                 home.pill.network = net.glyph
@@ -581,7 +590,7 @@ class HomeActivity : Activity(), HomeView.Host {
      */
     private fun forcePresets() {
         Toast.makeText(this, getString(R.string.sh_preset_running), Toast.LENGTH_SHORT).show()
-        work.execute {
+        submit {
             runCatching { SuperNames.refresh() }
             handler.post {
                 if (isFinishing) return@post
@@ -892,7 +901,7 @@ class HomeActivity : Activity(), HomeView.Host {
         override fun kidsCandidates(): List<AppEntry> = kidsCandidates
         override fun weatherChanged() {
             showWeather()
-            Weather.refreshIfStale({ work.execute(it) }, force = true) { handler.post { showWeather(); (panels.lastOrNull() as? Personalize)?.refreshChips() } }
+            Weather.refreshIfStale({ r -> submit { r.run() } }, force = true) { handler.post { showWeather(); (panels.lastOrNull() as? Personalize)?.refreshChips() } }
         }
     }
 

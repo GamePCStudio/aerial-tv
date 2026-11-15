@@ -62,6 +62,8 @@ class SaverView(context: Context, mode: ScreensaverMode, private val proxy: Film
     private var front = 0
     private var kenBurns: android.animation.Animator? = null
     private val loader = java.util.concurrent.Executors.newSingleThreadExecutor()
+    /** A decode in flight posts its next picture after release has cleared this handler. */
+    private var released = false
     /** No picture after [STALL_MS]: a slow network or a film the decoder never starts. */
     private val stalled = Runnable { fail() }
 
@@ -200,11 +202,13 @@ class SaverView(context: Context, mode: ScreensaverMode, private val proxy: Film
 
     /** The next picture, decoded off the main thread, faded in over the last. */
     private fun nextPhoto() {
+        if (released) return
         val wp = pictures[next % pictures.size]
         next++
         loader.execute {
             val b = runCatching { Wallpapers.picture(wp, Ui.screenW, Ui.screenH, whole = true) }.getOrNull()
             handler.post {
+                if (released) return@post
                 if (b == null) { handler.postDelayed(::nextPhoto, 1000); return@post }
                 val back = frames[front]
                 front = 1 - front
@@ -268,6 +272,7 @@ class SaverView(context: Context, mode: ScreensaverMode, private val proxy: Film
 
 
     fun release() {
+        released = true
         handler.removeCallbacksAndMessages(null)
         video?.stopPlayback()
         loader.shutdownNow()
