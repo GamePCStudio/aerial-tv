@@ -35,7 +35,7 @@
     <string name="sh_notice">启动时重要信息提示</string>
     <string name="sh_notice_on">开</string>
     <string name="sh_notice_off">关</string>
-    <string name="sh_notice_hint">桌面启动时把 superaerialnotice.txt 的内容显示在屏幕正中。读的顺序和预设名单一样：这台电视自己的文件优先，其次是电视上写的地址（/sdcard/tv/superaerialnotice.url）、我们站点、最后是内置的一份。文字下方两个按钮：「确认」从十秒开始倒数，数完两秒后自动确认；「不再提醒」等于把这个开关关掉，以后启动不再弹出。开关关掉也不压住新提醒——内容换过以后，第一次启动仍会告知「有新的重要提醒」，看过一次就不再追问。</string>
+    <string name="sh_notice_hint">桌面启动时把 superaerialnotice.txt 的内容显示在屏幕正中。读的顺序和预设名单一样：这台电视自己的文件优先，其次是电视上写的地址（/sdcard/tv/superaerialnotice.url）、我们站点、最后是内置的一份。文字下方两个按钮：「确认」从十二秒开始倒数，数完五秒后自动确认；弹窗出现时焦点就在「确认」上，随时按确认即可关闭；「不再提醒」等于把这个开关关掉，以后启动不再弹出。开关关掉也不压住新提醒——内容换过以后，第一次启动仍会告知「有新的重要提醒」，看过一次就不再追问。</string>
     <string name="sh_notice_title">重要提醒</string>
     <string name="sh_notice_new">有新的重要提醒</string>
     <string name="sh_notice_new_hint">这条提醒这台电视还没有给你看过。</string>

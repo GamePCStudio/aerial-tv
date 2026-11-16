@@ -265,10 +265,11 @@ object Notice {
  * rest of Lite and moved by the remote — [Sheet]'s rows, so up and down leave one for the other and OK
  * presses the focused one.
  *
- * 「确认」 counts down from ten and, two seconds after it counts them out, presses itself: a TV's remote
- * is slow and Home should not stay behind a box nobody is reading. The count holds its peace with a
- * person who is reading — a key pressed in those last two seconds takes the ten back rather than
- * answering the box over his head — and it only ever answers 确认. 不再提醒 is always its own press.
+ * 「确认」 counts down from twelve and, five seconds after it counts them out, presses itself: a TV's
+ * remote is slow and Home should not stay behind a box nobody is reading. The count holds its peace with
+ * a person who is reading — a key pressed in those last five seconds takes the twelve back rather than
+ * answering the box over his head — and it only ever answers 确认, which he can press at any moment: the
+ * box opens with the focus on it. 不再提醒 is always its own press.
  * BACK does what 确认 does, which is why [close] is the callback that says the notice has been read.
  *
  * [prompt] is the other face, for when 「启动时重要信息提示」 is 关 and the text is news: the notice is
@@ -284,9 +285,9 @@ class NoticeSheet(
     private val onView: () -> Unit,
 ) : Sheet(context, close) {
     companion object {
-        private const val COUNTDOWN = 10
+        private const val COUNTDOWN = 12
         /** The pause once the count is out, before the box answers itself. */
-        private const val AUTO_MS = 2000L
+        private const val AUTO_MS = 5000L
         /** The box's width in canvas units: nine lines of the notice across it, and no wider. */
         private const val WIDTH = 460f
     }
@@ -309,10 +310,11 @@ class NoticeSheet(
         }
         panel.addView(col, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        col.addView(context.label(string(if (prompt) R.string.sh_notice_new else R.string.sh_notice_title), 17f, 600),
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-            })
+        // The three words of the title over the middle of the box, not over its left edge: the label is
+        // as wide as the box, so it is the text that has to be told to centre itself.
+        col.addView(context.label(string(if (prompt) R.string.sh_notice_new else R.string.sh_notice_title), 17f, 600)
+            .apply { gravity = Gravity.CENTER_HORIZONTAL },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         if (prompt) {
             // The news, not the text: 查看 is what shows the text, so the prompt says only that there is
             // one and where it came from — which is the question a person answers without reading it.
@@ -336,7 +338,9 @@ class NoticeSheet(
         first.action = { if (prompt) onView() else close() }
         second.action = { if (prompt) close() else onNever() }
 
-        focusFirst(0, 0)
+        // Focus lands on the countdown button, the first column of the last row: the box is on screen to
+        // be dismissed, and OK must end it whenever he is done reading — before, during or after the count.
+        focusFirst(if (prompt) 0 else 1, 0)
         if (!prompt) count()
         // It grows into place, as the full app's dialog.
         panel.scaleX = 0.94f; panel.scaleY = 0.94f; panel.alpha = 0f
@@ -348,7 +352,7 @@ class NoticeSheet(
 
     private fun string(id: Int) = context.getString(id)
 
-    /** One second of the countdown, then the two seconds it waits before answering itself. */
+    /** One second of the countdown, then the five it waits before answering itself. */
     private fun count() {
         handler.removeCallbacks(tick)
         handler.removeCallbacks(auto)
@@ -364,7 +368,7 @@ class NoticeSheet(
 
     override fun onKey(e: KeyEvent): Boolean {
         if (!prompt && e.action == KeyEvent.ACTION_DOWN && e.keyCode != KeyEvent.KEYCODE_BACK && left <= 0) {
-            // Reading it still: the ten seconds back, and the box waits for him.
+            // Reading it still: the twelve seconds back, and the box waits for him.
             left = COUNTDOWN
             count()
         }

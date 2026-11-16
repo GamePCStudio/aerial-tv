@@ -38,7 +38,7 @@
     <string name="sh_notice">Startup notice</string>
     <string name="sh_notice_on">On</string>
     <string name="sh_notice_off">Off</string>
-    <string name="sh_notice_hint">Shows the notice from superaerialnotice.txt in the middle of the screen when Home starts: the TV\'s own file first, then the copy at the address on the TV, then our site, then the one built in. Its buttons are a confirmation counting down from ten and one that turns this switch off. A notice nobody on this TV has read yet is announced whatever this switch says.</string>
+    <string name="sh_notice_hint">Shows the notice from superaerialnotice.txt in the middle of the screen when Home starts: the TV\'s own file first, then the copy at the address on the TV, then our site, then the one built in. Its buttons are a confirmation counting down from twelve that answers itself five seconds after it counts out, and one that turns this switch off; the box opens with the focus on the confirmation, so OK ends it at any moment. A notice nobody on this TV has read yet is announced whatever this switch says.</string>
     <string name="sh_notice_title">Important notice</string>
     <string name="sh_notice_new">There is a new important notice</string>
     <string name="sh_notice_new_hint">This TV has not been shown it yet.</string>
