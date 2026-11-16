@@ -1,6 +1,6 @@
 package app.supeaerial.tv.lite
 
-import android.app.DevicePolicyManager
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
