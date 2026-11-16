@@ -43,6 +43,19 @@ enum class Effects(val key: String) {
 }
 
 /**
+ * SuperHome's 「音量」: what Home does with the TV's own music volume. [Off] leaves it alone,
+ * [Max] lifts it to full once when Home comes up, [Lock] keeps it there while Home lives — a remote
+ * or another app's slider that lowers it is answered straight back.
+ */
+enum class VolumeBoot(val key: String) {
+    Max("max"), Lock("lock"), Off("off");
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: Off
+    }
+}
+
+/**
  * SuperHome: the shape of an app's picture. Wide is Aerial Lite's own tile art (a 16:9 banner cut to
  * the tile); Square is the app's own Android icon, drawn as the launchers on every phone show it.
  * The number of apps a row follows the shape, so a square tile does not need the wide one's height.
@@ -100,6 +113,8 @@ object LiteSettings {
     var backStartsScreensaver = true; private set
     var uiSounds = UiSounds.Tv; private set
     var effects = Effects.Auto; private set
+    /** SuperHome's factory choice: the TV's volume is left where the user put it. */
+    var volumeBoot = VolumeBoot.Off; private set
     var screensaverMinutes = 5; private set
     var bootApp: String? = null; private set
 
@@ -140,6 +155,7 @@ object LiteSettings {
             runCatching { Settings.System.getInt(context.contentResolver, Settings.System.SOUND_EFFECTS_ENABLED, 1) }.getOrDefault(1) == 1
         ) UiSounds.Tv else UiSounds.Aerial
         effects = Effects.of(prefs.getString("effects", null))
+        volumeBoot = VolumeBoot.of(prefs.getString("volume_boot", null))
         screensaverMinutes = prefs.getInt("screensaver_minutes", 5)
         bootApp = prefs.getString("boot_app", null)
         pinHash = prefs.getString("pin_hash", null)
@@ -177,6 +193,7 @@ object LiteSettings {
     fun chooseBackStartsScreensaver(v: Boolean) { backStartsScreensaver = v; put { putBoolean("back_starts_screensaver", v) } }
     fun chooseUiSounds(v: UiSounds) { uiSounds = v; put { putString("ui_sounds_kind", v.key) } }
     fun chooseEffects(v: Effects) { effects = v; put { putString("effects", v.key) } }
+    fun chooseVolumeBoot(v: VolumeBoot) { volumeBoot = v; put { putString("volume_boot", v.key) } }
     fun chooseScreensaverMinutes(v: Int) { screensaverMinutes = v; put { putInt("screensaver_minutes", v) } }
     fun chooseBootApp(pkg: String?) { bootApp = pkg; put { putString("boot_app", pkg) } }
 

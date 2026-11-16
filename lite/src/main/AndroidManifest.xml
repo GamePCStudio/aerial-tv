@@ -22,6 +22,14 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- SuperHome's 「音量」: what setStreamVolume is checked against. Normal, so it is granted at
+         install everywhere; Lite's own volume slider has always leaned on it without naming it. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- SuperHome's 「重启设备」: signature|privileged, so a plain install does not get it and the
+         row falls back to the other ways an app can ask (Reboot). Declared so it lands wherever
+         SuperHome is put in the firmware with the grant. -->
+    <uses-permission android:name="android.permission.REBOOT"
+        tools:ignore="ProtectedPermissions" />
     <!-- SuperHome's preset list under /sdcard/tv/. Granted at install on every 4.x TV, which is
          what Lite runs on; the app's own directory on external storage needs none, and works
          wherever this one does not. -->

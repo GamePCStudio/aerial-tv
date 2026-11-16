@@ -420,7 +420,8 @@ class TileMenu(context: Context, close: () -> Unit, title: String, anchor: RectF
  * remote feels, the screensaver, the weather, the parental PIN) with a note under each that
  * follows the focused row; on the right, the QR code of the phone page. Rows that only some
  * choices have come and go, so the rows are made again after every choice, focus kept in place.
- * The last row is a one-shot: it applies the preset list to this TV again.
+ * The last two rows are SuperHome's own, and both are one shots: the preset list applied to this TV
+ * again, and the whole TV rebooted where its firmware lets a Home app ask.
  */
 class Personalize(
     context: Context,
@@ -434,6 +435,7 @@ class Personalize(
     private val onPin: (Boolean) -> Unit,
     private val onKids: () -> Unit = {},
     private val onForce: () -> Unit = {},
+    private val onReboot: () -> Unit = {},
 ) : Sheet(context, close) {
     private val col = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -575,6 +577,10 @@ class Personalize(
                 string(if (LiteSettings.effects == Effects.Auto && !(context as android.app.Activity).window.decorView.isHardwareAccelerated) R.string.st_effects_auto_lite_hint else R.string.st_effects_hint),
                 listOf(Effects.Auto to R.string.st_effects_auto, Effects.Full to R.string.st_effects_full, Effects.Lite to R.string.st_effects_lite),
                 LiteSettings.effects) { LiteSettings.chooseEffects(it); onLayout() }
+            // SuperHome's own: the TV's music volume, lifted when Home starts and optionally held there.
+            choices(R.string.sh_volume, string(R.string.sh_volume_hint),
+                listOf(VolumeBoot.Max to R.string.sh_volume_max, VolumeBoot.Lock to R.string.sh_volume_lock, VolumeBoot.Off to R.string.sh_volume_no),
+                LiteSettings.volumeBoot) { LiteSettings.chooseVolumeBoot(it); Volume.start(context) }
         }
 
         col.add(section(R.string.wp_screensaver), top = 22f)
@@ -625,6 +631,13 @@ class Personalize(
         group {
             val run = Chip(context, string(R.string.sh_preset_run), { false }, Glyph.ChevronRight).apply { action = onForce }
             settingRow(R.string.sh_preset_force, string(R.string.sh_preset_force_hint), listOf(run))
+        }
+
+        // And below that, the whole TV down and up again — where this app is allowed to ask for it.
+        col.add(space(context, 10f))
+        group(string(R.string.sh_reboot_hint)) {
+            val now = Chip(context, string(R.string.sh_reboot_now), { false }, Glyph.ChevronRight).apply { action = onReboot }
+            settingRow(R.string.sh_reboot, null, listOf(now))
         }
     }
 

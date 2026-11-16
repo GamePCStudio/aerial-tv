@@ -78,6 +78,9 @@ class HomeActivity : Activity(), HomeView.Host {
         SuperNames.init(this)
         Weather.init(this)
         Sounds.init(this)
+        // SuperHome's 「音量」: where the choice says so, the TV's music volume is lifted now, on the
+        // way Home comes up after a boot; the watch that holds it there is registered with it.
+        Volume.start(this)
         layout = LayoutStore(this)
         migrateOldLayout()
         root = FrameLayout(this)
@@ -113,6 +116,7 @@ class HomeActivity : Activity(), HomeView.Host {
         unregisterReceiver(packages)
         unregisterReceiver(connectivity)
         hideSaver()
+        Volume.stop()
         proxy.stop()
         PhoneServer.stop()
         work.shutdown()
@@ -144,6 +148,8 @@ class HomeActivity : Activity(), HomeView.Host {
         super.onResume()
         resumed = true
         Kids.homeInFront = true
+        // SuperHome's 「音量」: 锁死 watches the level only while Home is the screen in front.
+        Volume.resume(this)
         home.refreshClock()
         showNetwork()
         showWeather()
@@ -162,6 +168,7 @@ class HomeActivity : Activity(), HomeView.Host {
         hideSaver()
         // Back on Home the PIN is asked again (the full app relocks when an app opens).
         LiteSettings.relock()
+        Volume.stop()
         super.onPause()
     }
 
@@ -579,6 +586,7 @@ class HomeActivity : Activity(), HomeView.Host {
             },
             onKids = ::setUpKids,
             onForce = ::forcePresets,
+            onReboot = ::rebootDevice,
         ))
     }
 
@@ -603,6 +611,29 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     private fun refreshPersonalize() { (panels.lastOrNull() as? Personalize)?.refreshChips() }
+
+    /**
+     * SuperHome's 「重启设备」. The row is asked for twice within a few seconds, because this is the
+     * one thing on Personalize that cannot be taken back afterwards. Every way an app is allowed to
+     * put a TV down is tried off the main thread ([Reboot]); where none of them answered, the Toast
+     * says so rather than leaving the row to look broken, and where one did the TV is already down.
+     */
+    private var rebootAsked = 0L
+    private fun rebootDevice() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - rebootAsked > REBOOT_CONFIRM_MS) {
+            rebootAsked = now
+            Toast.makeText(this, getString(R.string.sh_reboot_again), Toast.LENGTH_LONG).show()
+            return
+        }
+        rebootAsked = 0L
+        Toast.makeText(this, getString(R.string.sh_reboot_going), Toast.LENGTH_LONG).show()
+        val app = applicationContext
+        submit {
+            Reboot.attempt(app)
+            handler.post { if (!isFinishing) Toast.makeText(app, getString(R.string.sh_reboot_denied), Toast.LENGTH_LONG).show() }
+        }
+    }
 
     private val bake = Runnable { loadBackdrop() }
 
@@ -909,6 +940,8 @@ class HomeActivity : Activity(), HomeView.Host {
         private const val TAG = "AerialLite"
         private const val SCREENSAVER_HOLD_MS = 4 * 60 * 60 * 1000L
         private const val DAILY_RETRY_MS = 30 * 60 * 1000L
+        /** How long the 「现在重启」 confirmation stays alive: longer than the Toast that asks for it. */
+        private const val REBOOT_CONFIRM_MS = 12 * 1000L
         private const val HOME_LAYER = 1
         private const val GRID_LAYER = 2
         /** The TVs' settings apps, kept behind the PIN (the full app's SystemProbe.isSettingsApp). */
