@@ -557,6 +557,8 @@ class HomeActivity : Activity(), HomeView.Host {
             locked = { whenUnlocked(it) },
             personalize = ::openPersonalize,
             reboot = ::rebootDevice,
+            notice = ::openNoticeRow,
+            help = ::openHelp,
             goTo = ::showControlCenter,
             bootLabel = LiteSettings.bootApp?.let { pkg -> entry(pkg)?.label ?: pkg },
             clearBoot = { LiteSettings.chooseBootApp(null); showControlCenter(CcPage.Main) },
@@ -667,6 +669,28 @@ class HomeActivity : Activity(), HomeView.Host {
             if (fresh != null) showNotice(true, fresh)
         },
     ))
+
+    /**
+     * SuperHome's 「重要提醒」 row on the Control Center's list: the notice as the four layers have it
+     * now, in the same box as at startup, with the same 确认 and 不再提醒. It is asked for rather than
+     * sprung on the way in, so it comes up whatever 「启动时重要信息提示」 says — and reading it here
+     * settles it, since [showNotice] marks the text seen when the box is full.
+     */
+    private fun openNoticeRow() {
+        val text = Notice.current()
+        if (text == null) {
+            // Only a layer that was blank gets here; where it went wrong belongs in the log, not on the TV.
+            Log.w(TAG, "notice row: no copy to show, so nothing came up")
+            return
+        }
+        Log.i(TAG, "notice row: ${text.length} characters from the ${Notice.source()} copy")
+        showNotice(true, text)
+    }
+
+    /** SuperHome's 「系统帮助」 row: the pictures, from the TV's own folder or the ones this APK carries. */
+    private fun openHelp() {
+        showPanel(HelpSheet(this, ::closePanel))
+    }
 
     /**
      * SuperHome's 「重启设备」 row on the Control Center's list. It is asked for twice within a few

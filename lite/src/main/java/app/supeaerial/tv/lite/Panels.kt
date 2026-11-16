@@ -118,6 +118,9 @@ class ControlCenter(
     private val locked: (() -> Unit) -> Unit,
     private val personalize: () -> Unit,
     private val reboot: () -> Unit,
+    /** SuperHome's two above Personalize: the notice as its layers have it now, and the help's pictures. */
+    private val notice: () -> Unit,
+    private val help: () -> Unit,
     private val goTo: (CcPage) -> Unit,
     private val bootLabel: String?,
     private val clearBoot: () -> Unit,
@@ -261,6 +264,15 @@ class ControlCenter(
             col.add(back, top = 6f)
             row(back)
         }
+        // SuperHome's two, side by side above Personalize: half the panel each, so a four-word row is
+        // what fits — the notice as the layers have it now, and the pictures that say how the TV is used.
+        val alert = MenuRow(context, Glyph.Info, context.getString(R.string.sh_notice_title)).apply { action = notice }
+        val pictures = MenuRow(context, Glyph.Photo, context.getString(R.string.sh_help)).apply { action = help }
+        val pair = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        pair.addView(alert, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = Ui.pxi(4f) })
+        pair.addView(pictures, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = Ui.pxi(4f) })
+        col.add(pair, top = 6f)
+        row(alert, pictures)
         val pers = MenuRow(context, Glyph.Photo, context.getString(R.string.cc_personalize)).apply { action = personalize }
         col.add(pers, top = 6f)
         row(pers)

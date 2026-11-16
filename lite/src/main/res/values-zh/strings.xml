@@ -45,4 +45,7 @@
     <string name="sh_notice_confirm_count">确认（%1$d）</string>
     <string name="sh_notice_never">不再提醒</string>
     <string name="sh_notice_page">%1$d / %2$d</string>
+    <!-- 「系统帮助」：右上角设置里和「重要提醒」并排的一行，显示一组图片，程序说明 §26。 -->
+    <string name="sh_help">系统帮助</string>
+    <string name="sh_help_empty">还没有帮助图片。把 png 或 jpg 按顺序放进电视的 /sdcard/tv/help/ 目录（文件名决定翻阅顺序，例如 01-开机.png、02-音量.png），再按一次「系统帮助」就能看到。左右键翻页，确定或返回退出。</string>
 </resources>
