@@ -61,6 +61,9 @@ object Notice {
     /** One layer's notice: the text shown, and the address its own `url` line asked for. */
     private class Body(val text: String, val url: String?)
 
+    /** The opening tag of an HTML or XML document, wherever it is: no notice an owner typed starts like one. */
+    private val page = Regex("<(!doctype|html|\\?xml)", RegexOption.IGNORE_CASE)
+
     private lateinit var context: Context
     private lateinit var cacheFile: File
     private lateinit var prefs: SharedPreferences
@@ -202,10 +205,16 @@ object Notice {
 
     /**
      * One file's notice: its `url` line taken out as the address, the rest kept line for line. Nothing
-     * comes of a file that says only an address, or of an empty one — no box over no news.
+     * comes of a file that says only an address, of an empty one, or of a web page — no box over no news.
      */
     private fun body(text: String?): Body? {
         if (text == null) return null
+        if (page.containsMatchIn(text)) {
+            // Where nothing is deployed, the site's own edge answers 200 with an empty HTML shell. That
+            // is a document, not the notice, and it must not take the built-in copy's place on every TV.
+            Log.w(TAG, "that is a web page, not a notice; keeping the copy this TV has")
+            return null
+        }
         var url: String? = null
         val kept = ArrayList<String>()
         for (raw in text.lines()) {
