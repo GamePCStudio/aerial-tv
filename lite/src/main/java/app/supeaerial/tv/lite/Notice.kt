@@ -106,7 +106,7 @@ object Notice {
         val hash = hash(text)
         if (hash == seen()) return
         prefs.edit().putString("seen_hash", hash).apply()
-        Log.i(TAG, "notice: this TV has now read the $source() copy (${hash.take(8)})")
+        Log.i(TAG, "notice: this TV has now read the ${source()} copy (${hash.take(8)})")
     }
 
     /** True when the text on offer is one this TV has never been shown: 重要提醒, whatever the switch says. */

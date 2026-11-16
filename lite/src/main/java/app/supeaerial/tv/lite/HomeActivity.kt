@@ -634,7 +634,7 @@ class HomeActivity : Activity(), HomeView.Host {
         // Not over anything the person is already in — a folder, the screensaver, a PIN. It is asked
         // again a few times, and then waits for the next start rather than arriving whenever.
         if (saver != null || panels.isNotEmpty()) {
-            if (resumed && noticeTries++ < 5) handler.postDelayed(askNotice, 5000)
+            if (resumed && noticeTries++ < 5) handler.postDelayed({ askNotice() }, 5000)
             return
         }
         if (!resumed) return
@@ -648,7 +648,7 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     /** The box itself (full) or the question about it (prompt); [showPanel] takes whatever was open. */
-    private fun showNotice(full: Boolean, text: String) = showPanel(NoticeSheet(
+    private fun showNotice(full: Boolean, text: String): Unit = showPanel(NoticeSheet(
         this,
         // Reading the text is what settles it; putting off a notice that has not been shown keeps the news.
         close = {
