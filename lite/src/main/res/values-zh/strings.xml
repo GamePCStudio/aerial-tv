@@ -28,7 +28,7 @@
     <!-- 个性化最下方那一行：把整台电视关机再起来。 -->
     <string name="sh_reboot">重启设备</string>
     <string name="sh_reboot_now">现在重启</string>
-    <string name="sh_reboot_hint">整台电视关机再起来。桌面这类 App 一般没有这个权力：把 SuperHome 装进固件（/system/priv-app 并授 REBOOT）、或用它当设备所有者（安卓 7.0+，一条 adb 命令）、或机器上有能用的 root，才谈得上生效；都不行时这一行会直接告诉你被拒了。</string>
+    <string name="sh_reboot_hint">整台电视关机再起来。桌面这类 App 一般没有这个权力：把 SuperHome 装进固件（/system/priv-app 并授 REBOOT），或机器上有能用的 root，才谈得上生效；都不行时这一行会直接告诉你被拒了。</string>
     <string name="sh_reboot_again">要确认：几秒内再按一次「现在重启」</string>
     <string name="sh_reboot_going">正在请求这台电视重启…</string>
     <string name="sh_reboot_denied">这台电视不让桌面重启：需要系统授权或 root</string>

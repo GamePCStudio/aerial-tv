@@ -31,7 +31,7 @@
     <!-- SuperHome's last Personalize row: the whole TV down and up again. -->
     <string name="sh_reboot">Reboot the TV</string>
     <string name="sh_reboot_now">Reboot now</string>
-    <string name="sh_reboot_hint">Puts the whole TV down and up again. A Home app is not usually allowed to: it works where SuperHome is in the firmware with the REBOOT grant, where it has been set up as the device owner (Android 7.0+, one adb command), or where the box has a root shell. Otherwise the row says the TV refused.</string>
+    <string name="sh_reboot_hint">Puts the whole TV down and up again. A Home app is not usually allowed to: it works where SuperHome is in the firmware with the REBOOT grant, or where the box has a root shell. Otherwise the row says the TV refused.</string>
     <string name="sh_reboot_again">Ask again to confirm: press Reboot now once more within a few seconds</string>
     <string name="sh_reboot_going">Asking this TV to reboot…</string>
     <string name="sh_reboot_denied">This TV would not let Home reboot it: it needs a system grant or root</string>

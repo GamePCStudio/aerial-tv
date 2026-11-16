@@ -1,9 +1,7 @@
 package app.supeaerial.tv.lite
 
-import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,17 +15,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  1. [PowerManager.reboot] — needs REBOOT, signature|privileged. It lands when the APK sits in the
  *     firmware (/system/priv-app with the permission granted) or is platform-signed; installed from
  *     an APK it throws [SecurityException], which is the case on every TV SuperHome has run on so far.
- *  2. [DevicePolicyManager.reboot], Android 7.0+ — only for the device owner, which a plain install
- *     can be made into with one adb command on a TV that is still being set up.
- *  3. root's `reboot` — where the firmware ships a `su` that answers, as plenty of Chinese boxes do.
+ *  2. root's `reboot` — where the firmware ships a `su` that answers, as plenty of Chinese boxes do.
  *     It runs in a thread of its own: a `su` that stops for a prompt nobody answers would otherwise
  *     hold Home's worker for the rest of the session.
- *  4. the firmware's own shutdown page, then the REBOOT broadcast — AOSP guards both with the same
+ *  3. the firmware's own shutdown page, then the REBOOT broadcast — AOSP guards both with the same
  *     REBOOT the first route already lacked, but some MStar and Realtek builds leave them open.
  *
- * Called from Home's worker thread, never the main one: the last two routes wait, and a `su` can
- * block. Nothing here returns a verdict: a route that works stops this app and never gets back to
- * the caller, so the caller only ever hears "still awake" — and says so, rather than leaving the row
+ * The device-owner route is deliberately not tried: `DevicePolicyManager.reboot` takes the component
+ * of a `DeviceAdminReceiver`, so it only answers for an app that declares one and has been set as the
+ * device owner with it. SuperHome declares no admin and asking to be one — which can then lock the
+ * screen and enforce encryption among other things — is far more of the TV than a reboot row is worth.
+ *
+ * Called from Home's worker thread, never the main one: the last routes wait, and a `su` can block.
+ * Nothing here returns a verdict: a route that works stops this app and never gets back to the
+ * caller, so the caller only ever hears "still awake" — and says so, rather than leaving the row
  * looking broken.
  */
 object Reboot {
@@ -43,12 +44,6 @@ object Reboot {
         val app = context.applicationContext
         route("PowerManager.reboot") {
             (app.getSystemService(Context.POWER_SERVICE) as PowerManager).reboot(null)
-        }
-        if (Build.VERSION.SDK_INT >= 24) route("DevicePolicyManager.reboot") {
-            val dpm = app.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-                ?: throw SecurityException("no device policy service")
-            if (!dpm.isDeviceOwnerApp(app.packageName)) throw SecurityException("Home is not the device owner")
-            dpm.reboot(null)
         }
         su()
         // Only worth asking where this firmware has someone to answer, since a request that goes
