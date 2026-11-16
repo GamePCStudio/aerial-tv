@@ -30,8 +30,22 @@
 
     <!-- SuperHome's own rows on the Control Center's list, level with Personalize. -->
     <string name="sh_reboot">Reboot the TV</string>
-    <string name="sh_sys_settings">Open system settings</string>
     <string name="sh_reboot_again">Ask again to confirm: press Reboot the TV once more within a few seconds</string>
     <string name="sh_reboot_going">Asking this TV to reboot…</string>
     <string name="sh_reboot_denied">This TV would not let Home reboot it: it needs a system grant or root</string>
+
+    <!-- SuperHome's 「启动时重要信息提示」: 程序说明 §24. -->
+    <string name="sh_notice">Startup notice</string>
+    <string name="sh_notice_on">On</string>
+    <string name="sh_notice_off">Off</string>
+    <string name="sh_notice_hint">Shows the notice from superaerialnotice.txt in the middle of the screen when Home starts: the TV\'s own file first, then the copy at the address on the TV, then our site, then the one built in. Its buttons are a confirmation counting down from ten and one that turns this switch off. A notice nobody on this TV has read yet is announced whatever this switch says.</string>
+    <string name="sh_notice_title">Important notice</string>
+    <string name="sh_notice_new">There is a new important notice</string>
+    <string name="sh_notice_new_hint">This TV has not been shown it yet.</string>
+    <string name="sh_notice_view">View</string>
+    <string name="sh_notice_later">Later</string>
+    <string name="sh_notice_confirm">Confirm</string>
+    <string name="sh_notice_confirm_count">Confirm (%1$d)</string>
+    <string name="sh_notice_never">Never again</string>
+    <string name="sh_notice_page">%1$d / %2$d</string>
 </resources>

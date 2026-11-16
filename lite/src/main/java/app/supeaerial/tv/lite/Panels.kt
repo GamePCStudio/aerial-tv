@@ -264,15 +264,11 @@ class ControlCenter(
         val pers = MenuRow(context, Glyph.Photo, context.getString(R.string.cc_personalize)).apply { action = personalize }
         col.add(pers, top = 6f)
         row(pers)
-        // SuperHome's own two, listed beside Personalize instead of a sheet below it: the whole TV down
-        // and up again, and the TV's settings for anyone who would rather have them in the list than on
-        // the round button — which asks for the parental PIN ([locked]) exactly as that button does.
+        // SuperHome's own, listed beside Personalize instead of a sheet below it: the whole TV down and
+        // up again. The TV's own settings stay behind the round button at the top, where they always were.
         val restart = MenuRow(context, Glyph.Power, context.getString(R.string.sh_reboot)).apply { action = reboot }
         col.add(restart, top = 6f)
         row(restart)
-        val system = MenuRow(context, Glyph.Gear, context.getString(R.string.sh_sys_settings)).apply { action = { openSystemSettings() } }
-        col.add(system, top = 6f)
-        row(system)
         // What the TV opens when switched on: easy to forget, and puzzling when it happens.
         bootLabel?.let { name ->
             val boot = MenuRow(context, Glyph.Power, context.getString(R.string.cc_boot), "$name ›").apply { action = { goTo(CcPage.Boot) } }
@@ -591,6 +587,10 @@ class Personalize(
             choices(R.string.sh_volume, string(R.string.sh_volume_hint),
                 listOf(VolumeBoot.Max to R.string.sh_volume_max, VolumeBoot.Lock to R.string.sh_volume_lock, VolumeBoot.Off to R.string.sh_volume_no),
                 LiteSettings.volumeBoot) { LiteSettings.chooseVolumeBoot(it); Volume.start(context) }
+            // SuperHome's own: the notice shown in the middle of the screen when Home starts.
+            choices(R.string.sh_notice, string(R.string.sh_notice_hint),
+                listOf(true to R.string.sh_notice_on, false to R.string.sh_notice_off),
+                LiteSettings.noticeBoot) { LiteSettings.chooseNoticeBoot(it) }
         }
 
         col.add(section(R.string.wp_screensaver), top = 22f)

@@ -44,6 +44,12 @@ object Volume {
      * 4, which is the number that reaches the TV. So a level found at the top says nothing about the
      * output that is coming: it is looked at again every [SETTLE_STEP_MS] until [SETTLE_MS] has gone
      * by, Home leaves the front, or there turns out to be nothing here to move.
+     *
+     * The first look that finds an output below the top ends the window: the level it writes is that
+     * of the output the box is sounding through, so looking again can only answer a volume key the
+     * owner pressed since. Keeping the window open to the full [SETTLE_MS] did exactly that, and it
+     * read as a bug — lower the volume a few times within 45 s of boot and one of the looks put it
+     * back. Only an output that was already at the top leaves the window open, waiting for another.
      */
     private const val SETTLE_STEP_MS = 3000L
     private const val SETTLE_MS = 45 * 1000L
@@ -114,6 +120,7 @@ object Volume {
         handler.postDelayed(settleLook, SETTLE_STEP_MS)
     }
 
+    /** Whether this window has written a level yet; the look closes as soon as it has. */
     private var lifted = false
 
     private val settleLook = object : Runnable {
@@ -123,7 +130,7 @@ object Volume {
             if (LiteSettings.volumeBoot == VolumeBoot.Off) return
             val lift = lift(audio, app, "settle")
             if (lift == Lift.Done) lifted = true
-            if (lift == Lift.Skip || SystemClock.elapsedRealtime() >= settleEnds) {
+            if (lifted || lift == Lift.Skip || SystemClock.elapsedRealtime() >= settleEnds) {
                 settleEnds = 0L
                 if (!lifted && lift == Lift.AtTop) {
                     val max = runCatching { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(0)

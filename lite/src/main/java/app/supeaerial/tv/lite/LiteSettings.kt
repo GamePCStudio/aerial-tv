@@ -115,6 +115,13 @@ object LiteSettings {
     var effects = Effects.Auto; private set
     /** SuperHome's factory choice: the TV's volume is left where the user put it. */
     var volumeBoot = VolumeBoot.Off; private set
+    /**
+     * SuperHome's 「启动时重要信息提示」: whether the notice is shown whenever Home starts. Its factory
+     * choice is on — the notice is the owner's own words to whoever switches this TV on, and a TV that
+     * has never shown one has never been offered the choice. [Notice] still asks about a notice nobody
+     * has read when this is off; that is the part a person cannot switch off for themselves.
+     */
+    var noticeBoot = true; private set
     var screensaverMinutes = 5; private set
     var bootApp: String? = null; private set
 
@@ -156,6 +163,7 @@ object LiteSettings {
         ) UiSounds.Tv else UiSounds.Aerial
         effects = Effects.of(prefs.getString("effects", null))
         volumeBoot = VolumeBoot.of(prefs.getString("volume_boot", null))
+        noticeBoot = prefs.getBoolean("notice_boot", true)
         screensaverMinutes = prefs.getInt("screensaver_minutes", 5)
         bootApp = prefs.getString("boot_app", null)
         pinHash = prefs.getString("pin_hash", null)
@@ -194,6 +202,7 @@ object LiteSettings {
     fun chooseUiSounds(v: UiSounds) { uiSounds = v; put { putString("ui_sounds_kind", v.key) } }
     fun chooseEffects(v: Effects) { effects = v; put { putString("effects", v.key) } }
     fun chooseVolumeBoot(v: VolumeBoot) { volumeBoot = v; put { putString("volume_boot", v.key) } }
+    fun chooseNoticeBoot(v: Boolean) { noticeBoot = v; put { putBoolean("notice_boot", v) } }
     fun chooseScreensaverMinutes(v: Int) { screensaverMinutes = v; put { putInt("screensaver_minutes", v) } }
     fun chooseBootApp(pkg: String?) { bootApp = pkg; put { putString("boot_app", pkg) } }
 

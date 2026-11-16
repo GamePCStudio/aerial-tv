@@ -76,6 +76,7 @@ class HomeActivity : Activity(), HomeView.Host {
         Wallpapers.init(this)
         AppNames.init(this)
         SuperNames.init(this)
+        Notice.init(this)
         Weather.init(this)
         Sounds.init(this)
         // SuperHome's 「音量」: where the choice says so, the TV's music volume is lifted now, on the
@@ -296,6 +297,10 @@ class HomeActivity : Activity(), HomeView.Host {
             if (runCatching { IconLibrary.refresh(AppCatalog.installed) }.getOrDefault(false)) handler.post(reload)
             // The preset list of names and folders, then Home's tiles again if it moved anything.
             if (runCatching { SuperNames.refresh() }.getOrDefault(false)) handler.post { if (!isFinishing) arrange() }
+            // SuperHome's notice, read the same way in the same places. A text this TV has not been
+            // shown is news, and news is asked about however many times the tiles have gone round.
+            if (runCatching { Notice.refresh() }.getOrDefault(true)) noticeAsked = false
+            handler.post { if (!isFinishing) askNotice() }
         }
     }
 
@@ -611,6 +616,57 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     private fun refreshPersonalize() { (panels.lastOrNull() as? Personalize)?.refreshChips() }
+
+    /**
+     * SuperHome's 「启动时重要信息提示」: the notice goes up after the tiles have been laid out, which is
+     * where the TV has settled enough to answer a remote, and after [Notice.refresh] — so what shows is
+     * the newest copy the TV could reach, not the built-in one the cloud copy was about to replace.
+     *
+     * With the choice 开 that is the text itself. With it 关 it is only news: a text this TV has never
+     * been shown ([Notice.pending]) is announced, and 「稍后」 asks again next start, since nothing has
+     * been read. Either way once per notice, not once per visit to Home — the box is on the way in, not
+     * a wall between the TV and whatever it was doing.
+     */
+    private var noticeAsked = false
+    private var noticeTries = 0
+    private fun askNotice() {
+        if (noticeAsked || isFinishing) return
+        // Not over anything the person is already in — a folder, the screensaver, a PIN. It is asked
+        // again a few times, and then waits for the next start rather than arriving whenever.
+        if (saver != null || panels.isNotEmpty()) {
+            if (resumed && noticeTries++ < 5) handler.postDelayed(askNotice, 5000)
+            return
+        }
+        if (!resumed) return
+        val text = Notice.current() ?: return
+        val full = LiteSettings.noticeBoot
+        if (!full && !Notice.pending()) return
+        noticeAsked = true
+        Log.i(TAG, "notice: ${text.length} characters from the ${Notice.source()} copy, " +
+            if (full) "shown as the notice" else "shown as news")
+        showNotice(full, text)
+    }
+
+    /** The box itself (full) or the question about it (prompt); [showPanel] takes whatever was open. */
+    private fun showNotice(full: Boolean, text: String) = showPanel(NoticeSheet(
+        this,
+        // Reading the text is what settles it; putting off a notice that has not been shown keeps the news.
+        close = {
+            if (full) Notice.markSeen()
+            closePanel()
+        },
+        prompt = !full,
+        text = text,
+        onNever = {
+            LiteSettings.chooseNoticeBoot(false)
+            Notice.markSeen()
+            closePanel()
+        },
+        onView = {
+            val fresh = Notice.current()
+            if (fresh != null) showNotice(true, fresh)
+        },
+    ))
 
     /**
      * SuperHome's 「重启设备」 row on the Control Center's list. It is asked for twice within a few
