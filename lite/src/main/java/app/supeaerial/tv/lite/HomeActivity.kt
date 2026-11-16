@@ -551,6 +551,7 @@ class HomeActivity : Activity(), HomeView.Host {
             open = { closeAll(); open(it) },
             locked = { whenUnlocked(it) },
             personalize = ::openPersonalize,
+            reboot = ::rebootDevice,
             goTo = ::showControlCenter,
             bootLabel = LiteSettings.bootApp?.let { pkg -> entry(pkg)?.label ?: pkg },
             clearBoot = { LiteSettings.chooseBootApp(null); showControlCenter(CcPage.Main) },
@@ -586,7 +587,6 @@ class HomeActivity : Activity(), HomeView.Host {
             },
             onKids = ::setUpKids,
             onForce = ::forcePresets,
-            onReboot = ::rebootDevice,
         ))
     }
 
@@ -613,10 +613,10 @@ class HomeActivity : Activity(), HomeView.Host {
     private fun refreshPersonalize() { (panels.lastOrNull() as? Personalize)?.refreshChips() }
 
     /**
-     * SuperHome's 「重启设备」. The row is asked for twice within a few seconds, because this is the
-     * one thing on Personalize that cannot be taken back afterwards. Every way an app is allowed to
-     * put a TV down is tried off the main thread ([Reboot]); where none of them answered, the Toast
-     * says so rather than leaving the row to look broken, and where one did the TV is already down.
+     * SuperHome's 「重启设备」 row on the Control Center's list. It is asked for twice within a few
+     * seconds, because this is the one row there that cannot be taken back afterwards. Every way an app
+     * is allowed to put a TV down is tried off the main thread ([Reboot]); where none of them answered,
+     * the Toast says so rather than leaving the row to look broken, and where one did the TV is down.
      */
     private var rebootAsked = 0L
     private fun rebootDevice() {

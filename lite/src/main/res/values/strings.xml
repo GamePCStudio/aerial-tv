@@ -28,11 +28,10 @@
     <string name="sh_volume_no">No</string>
     <string name="sh_volume_hint">The TV\'s own music volume, not one app\'s: Home lifts it to full as it comes up. Keeping it held answers the remote\'s volume keys and another app\'s slider straight back, for as long as Home runs. Where the level is set past this box — HDMI-CEC, a soundbar — there is nothing here to move, and the log says so.</string>
 
-    <!-- SuperHome's last Personalize row: the whole TV down and up again. -->
+    <!-- SuperHome's own rows on the Control Center's list, level with Personalize. -->
     <string name="sh_reboot">Reboot the TV</string>
-    <string name="sh_reboot_now">Reboot now</string>
-    <string name="sh_reboot_hint">Puts the whole TV down and up again. A Home app is not usually allowed to: it works where SuperHome is in the firmware with the REBOOT grant, or where the box has a root shell. Otherwise the row says the TV refused.</string>
-    <string name="sh_reboot_again">Ask again to confirm: press Reboot now once more within a few seconds</string>
+    <string name="sh_sys_settings">Open system settings</string>
+    <string name="sh_reboot_again">Ask again to confirm: press Reboot the TV once more within a few seconds</string>
     <string name="sh_reboot_going">Asking this TV to reboot…</string>
     <string name="sh_reboot_denied">This TV would not let Home reboot it: it needs a system grant or root</string>
 </resources>

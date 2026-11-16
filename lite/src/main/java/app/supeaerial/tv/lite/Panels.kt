@@ -106,7 +106,8 @@ enum class CcPage { Main, Boot, Inputs }
 /**
  * Control Center, as the full app's ControlCenter main page: the time and date with the network,
  * three round buttons (inputs, network, settings), volume and brightness, Personalize, what the TV
- * starts on, and whether Aerial is the TV's Home. Home stays sharp behind it under a dark veil.
+ * starts on, and whether Aerial is the TV's Home. SuperHome's own 「重启设备」 and 「打开系统设置」 are
+ * rows here, level with Personalize. Home stays sharp behind it under a dark veil.
  * The network and settings sit behind the parental PIN ([locked]).
  */
 class ControlCenter(
@@ -116,6 +117,7 @@ class ControlCenter(
     private val open: (Intent) -> Unit,
     private val locked: (() -> Unit) -> Unit,
     private val personalize: () -> Unit,
+    private val reboot: () -> Unit,
     private val goTo: (CcPage) -> Unit,
     private val bootLabel: String?,
     private val clearBoot: () -> Unit,
@@ -151,6 +153,15 @@ class ControlCenter(
         write = { audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, AudioManager.FLAG_PLAY_SOUND) },
         shown = { v, _ -> if (v == 0) context.getString(R.string.cc_muted) else v.toString() },
     )
+
+    /** The TV's own settings page: its panel where its remote's key shows one, else the framework's (SystemIntents). */
+    private fun openSystemSettings() = locked {
+        if (!SystemIntents.openSettingsPanel(context)) {
+            val intent = SystemIntents.settings(context)
+            SystemIntents.noteSettingsOpened(intent)
+            open(intent)
+        }
+    }
 
     /** Kids and Elders mode's page, as the full app's KidsPage: the time, volume, the day's time left, leaving. */
     private fun kidsMain() {
@@ -206,15 +217,7 @@ class ControlCenter(
             }
         }
         val settings = RoundButton(context, Glyph.Gear, context.getString(R.string.cc_settings)).apply {
-            action = {
-                locked {
-                    if (!SystemIntents.openSettingsPanel(context)) {
-                        val intent = SystemIntents.settings(context)
-                        SystemIntents.noteSettingsOpened(intent)
-                        open(intent)
-                    }
-                }
-            }
+            action = { openSystemSettings() }
         }
         for ((i, b) in listOf(inputs, netButton, settings).withIndex()) {
             if (i > 0) buttons.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
@@ -261,6 +264,15 @@ class ControlCenter(
         val pers = MenuRow(context, Glyph.Photo, context.getString(R.string.cc_personalize)).apply { action = personalize }
         col.add(pers, top = 6f)
         row(pers)
+        // SuperHome's own two, listed beside Personalize instead of a sheet below it: the whole TV down
+        // and up again, and the TV's settings for anyone who would rather have them in the list than on
+        // the round button — which asks for the parental PIN ([locked]) exactly as that button does.
+        val restart = MenuRow(context, Glyph.Power, context.getString(R.string.sh_reboot)).apply { action = reboot }
+        col.add(restart, top = 6f)
+        row(restart)
+        val system = MenuRow(context, Glyph.Gear, context.getString(R.string.sh_sys_settings)).apply { action = { openSystemSettings() } }
+        col.add(system, top = 6f)
+        row(system)
         // What the TV opens when switched on: easy to forget, and puzzling when it happens.
         bootLabel?.let { name ->
             val boot = MenuRow(context, Glyph.Power, context.getString(R.string.cc_boot), "$name ›").apply { action = { goTo(CcPage.Boot) } }
@@ -420,8 +432,7 @@ class TileMenu(context: Context, close: () -> Unit, title: String, anchor: RectF
  * remote feels, the screensaver, the weather, the parental PIN) with a note under each that
  * follows the focused row; on the right, the QR code of the phone page. Rows that only some
  * choices have come and go, so the rows are made again after every choice, focus kept in place.
- * The last two rows are SuperHome's own, and both are one shots: the preset list applied to this TV
- * again, and the whole TV rebooted where its firmware lets a Home app ask.
+ * The last row is SuperHome's own, a one shot: the preset list applied to this TV again.
  */
 class Personalize(
     context: Context,
@@ -435,7 +446,6 @@ class Personalize(
     private val onPin: (Boolean) -> Unit,
     private val onKids: () -> Unit = {},
     private val onForce: () -> Unit = {},
-    private val onReboot: () -> Unit = {},
 ) : Sheet(context, close) {
     private val col = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -631,13 +641,6 @@ class Personalize(
         group {
             val run = Chip(context, string(R.string.sh_preset_run), { false }, Glyph.ChevronRight).apply { action = onForce }
             settingRow(R.string.sh_preset_force, string(R.string.sh_preset_force_hint), listOf(run))
-        }
-
-        // And below that, the whole TV down and up again — where this app is allowed to ask for it.
-        col.add(space(context, 10f))
-        group(string(R.string.sh_reboot_hint)) {
-            val now = Chip(context, string(R.string.sh_reboot_now), { false }, Glyph.ChevronRight).apply { action = onReboot }
-            settingRow(R.string.sh_reboot, null, listOf(now))
         }
     }
 

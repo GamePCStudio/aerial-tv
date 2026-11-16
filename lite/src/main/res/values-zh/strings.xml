@@ -25,11 +25,10 @@
     <string name="sh_volume_no">否</string>
     <string name="sh_volume_hint">电视自己的音乐音量，不是某个 App 的。选「启动时自动最大化」：桌面一起来就把它拧到最大。选「自动锁死最大音量」：桌面运行期间任何人往下调——遥控器的音量键、别的 App 的滑杆——都会立刻被顶回最大。音量本来就由音响或 HDMI-CEC 决定、机顶盒固定输出的机器上没有东西可拧，日志会说明。</string>
 
-    <!-- 个性化最下方那一行：把整台电视关机再起来。 -->
+    <!-- 设置列表里 SuperHome 自己的两行，和「个性化」平级。 -->
     <string name="sh_reboot">重启设备</string>
-    <string name="sh_reboot_now">现在重启</string>
-    <string name="sh_reboot_hint">整台电视关机再起来。桌面这类 App 一般没有这个权力：把 SuperHome 装进固件（/system/priv-app 并授 REBOOT），或机器上有能用的 root，才谈得上生效；都不行时这一行会直接告诉你被拒了。</string>
-    <string name="sh_reboot_again">要确认：几秒内再按一次「现在重启」</string>
+    <string name="sh_sys_settings">打开系统设置</string>
+    <string name="sh_reboot_again">要确认：几秒内再按一次「重启设备」</string>
     <string name="sh_reboot_going">正在请求这台电视重启…</string>
     <string name="sh_reboot_denied">这台电视不让桌面重启：需要系统授权或 root</string>
 </resources>
