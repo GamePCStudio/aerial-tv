@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.util.Log
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -36,6 +37,8 @@ object Reboot {
     /** Room given to a TV that was told to go down, before Home calls the attempt refused. */
     private const val SHUTDOWN_WAIT_MS = 6000L
     private const val SU_WAIT_MS = 6000L
+    /** Where a `su` is kept on these firmwares. The bare name is what a live PATH would find. */
+    private val SUS = arrayOf("su", "/system/xbin/su", "/system/bin/su", "/sbin/su")
     /** AOSP's shutdown activity, and the broadcast the framework sends when it reboots itself. */
     private const val SHUTDOWN_ACTION = "android.intent.action.ACTION_REQUEST_SHUTDOWN"
     private const val REBOOT_ACTION = "android.intent.action.REBOOT"
@@ -59,12 +62,16 @@ object Reboot {
         runCatching(block).onFailure { Log.i(TAG, "$name: ${it.javaClass.simpleName}: ${it.message}") }
     }
 
-    /** Root's reboot, where a `su` is on the box; its own thread, so a silent prompt cannot hold Home. */
+    /** Root's reboot, where a `su` is on the box and this app may run it; its own thread, so a silent prompt cannot hold Home. */
     private fun su() {
+        // Asking first is the only way the log can tell a box with no root from a box whose root is
+        // not for apps: an exec refused for want of an execute bit says `IOException` either way.
+        val bin = SUS.firstOrNull { runCatching { File(it).canExecute() }.getOrDefault(false) }
+        if (bin == null) { Log.i(TAG, "su: nothing runnable in $SUS"); return }
         val exited = AtomicBoolean(false)
         val t = Thread {
             runCatching {
-                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot"))
+                val p = Runtime.getRuntime().exec(arrayOf(bin, "-c", "reboot"))
                 p.outputStream.use { it.write("reboot\n".toByteArray()) }
                 val code = p.waitFor()
                 exited.set(true)

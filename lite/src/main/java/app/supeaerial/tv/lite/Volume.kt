@@ -85,8 +85,9 @@ object Volume {
         stop()
         if (LiteSettings.volumeBoot != VolumeBoot.Lock) return
         val r = object : BroadcastReceiver() {
-            // Any stream's change is answered by putting MUSIC back, which costs one read when it is
-            // already there; the write is silent and with no flags, so the TV's panel never shows.
+            // Any stream's change is answered by putting MUSIC back: one read when it is already
+            // there, which [lift] logs rather than staying quiet about. The write is silent and with
+            // no flags, so the TV's panel never shows.
             override fun onReceive(context: Context, intent: Intent) { lift(audio, app) }
         }
         runCatching { app.registerReceiver(r, IntentFilter(VOLUME_CHANGED)) }
@@ -104,7 +105,13 @@ object Volume {
         }
         val max = runCatching { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(0)
         if (max <= 0) return
-        if (runCatching { audio.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(max) >= max) return
+        // Saying so when it is already there is the only way to tell 「锁死 answering」 apart from
+        // 「never registered」 in a log, which is the question on a box whose sound is set past it.
+        val now = runCatching { audio.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(max)
+        if (now >= max) {
+            Log.i(TAG, "music volume ${LiteSettings.volumeBoot.key}: already at $max")
+            return
+        }
         // Flags 0: the TV's volume panel must not pop up over Home every time the level is put back.
         runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, max, 0) }
             .onSuccess { Log.i(TAG, "music volume ${LiteSettings.volumeBoot.key}: lifted to $max") }
