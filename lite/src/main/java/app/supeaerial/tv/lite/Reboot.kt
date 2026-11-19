@@ -20,8 +20,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  *     It runs in a thread of its own: a `su` that stops for a prompt nobody answers would otherwise
  *     hold Home's worker for the rest of the session.
  *  3. [AdbReboot] — the TV's own adbd on loopback port 5555. Those boxes are adb-over-network already,
- *     so the port is open without a cable, adbd runs as root on many of them, and on newer builds
- *     `reboot` is a `sys.powerctl` write the shell uid may do. So it reaches TVs where 1 and 2 both miss.
+ *     so the port is open without a cable, and the order it gives is `reboot:` — the one `adb reboot`
+ *     sends, which adbd carries out itself by writing the `sys.powerctl` property that init obeys. That
+ *     is the whole point: the permission to write it is adbd's in the SELinux policy, not this app's
+ *     and not a shell's, so it reaches TVs where 1 and 2 both miss — including a user build whose adbd
+ *     is only uid shell. Where adbd wants to be told who is calling, the TV is asked to authorize a key
+ *     of its own, once, the same prompt `adb connect` gets.
  *  4. the firmware's own shutdown page, then the REBOOT broadcast — AOSP guards both with the same
  *     REBOOT the first route already lacked, but some MStar and Realtek builds leave them open.
  *
@@ -52,12 +56,12 @@ object Reboot {
             (app.getSystemService(Context.POWER_SERVICE) as PowerManager).reboot(null)
         }
         su()
-        // The TV's own adb, where its default port is open: a `shell:reboot` over loopback, which is the
-        // same order `adb reboot` gives. It needs neither this app's REBOOT nor a `su`, only adbd — and
-        // the boxes SuperHome runs on are adb-over-network already, so that is usually there. Once adbd
-        // has taken the order, asking the shutdown page as well would only put a page up on a TV that is
-        // already going down.
-        if (AdbReboot.attempt()) {
+        // The TV's own adb, where its default port is open: `reboot:` over loopback, which is the order
+        // `adb reboot` gives and adbd does the writing. It needs neither this app's REBOOT nor a `su`,
+        // only adbd — and the boxes SuperHome runs on are adb-over-network already, so that is usually
+        // there. Once adbd has taken the order, asking the shutdown page as well would only put a page up
+        // on a TV that is already going down.
+        if (AdbReboot.attempt(app)) {
             Log.i(TAG, "adbd: the order is given, so nothing else is asked")
             runCatching { Thread.sleep(SHUTDOWN_WAIT_MS) }
             return
