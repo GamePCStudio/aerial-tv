@@ -20,9 +20,9 @@ android {
         // Android 4.0.
         minSdk = 14
         targetSdk = 34
-        // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.33.
-        versionCode = 133
-        versionName = "1.32"
+        // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.34.
+        versionCode = 134
+        versionName = "1.33"
     }
 
     // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);
