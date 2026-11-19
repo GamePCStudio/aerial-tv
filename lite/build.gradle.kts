@@ -116,8 +116,11 @@ val copyStrings by tasks.registering(Copy::class) {
         rename("strings.xml", "app_strings.xml")
     }
     into(sharedRes)
-    // Lite keeps its own name.
-    filter { line -> if (line.contains("name=\"app_name\"")) "" else line }
+    // The two sentences SuperHome says about itself: its name, and the Control Center's line about
+    // being the TV's home. Cut here so Lite's own values*/strings.xml is the only definition — the
+    // merged resources would otherwise hold two of the same name.
+    val ours = setOf("app_name", "cc_home_default")
+    filter { line -> if (ours.any { n -> line.contains("name=\"$n\"") }) "" else line }
 }
 android.sourceSets["main"].res.srcDir(sharedRes)
 tasks.named("preBuild") { dependsOn(copyAerials, copySources, copyStrings) }

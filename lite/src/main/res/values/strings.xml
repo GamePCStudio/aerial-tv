@@ -4,6 +4,10 @@
          copyStrings filter in lite/build.gradle.kts, which drops the full app's app_name). -->
     <string name="app_name">SuperHome</string>
 
+    <!-- The Control Center's status sentence, cut out of the shared copy the same way. Its other
+         half — 「尚未设为默认桌面」— says no name, so that one stays upstream's in all five. -->
+    <string name="cc_home_default">SuperHome is your home screen</string>
+
     <!-- SuperHome's Personalize row: the shape of an app's picture. -->
     <string name="sh_icon_type">App icon type</string>
     <string name="sh_shape_wide">Wide</string>

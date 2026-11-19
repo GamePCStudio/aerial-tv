@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The Ukrainian counterpart of the same sentence: only the name is SuperHome's. -->
+    <string name="cc_home_default">SuperHome — ваш головний екран</string>
+</resources>
