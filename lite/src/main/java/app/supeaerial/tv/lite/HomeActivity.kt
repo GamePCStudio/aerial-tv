@@ -158,7 +158,9 @@ class HomeActivity : Activity(), HomeView.Host {
     private val weatherTick = object : Runnable {
         override fun run() {
             if (!resumed) return
-            Weather.refreshIfStale({ work.execute(it) }) { handler.post { showWeather() } }
+            // Ours dispatches through [submit]: the pool is closed by onDestroy, and this tick can land
+            // after that (upstream wrote work.execute directly, which is the crash this branch fixed).
+            Weather.refreshIfStale({ r -> submit { r.run() } }) { handler.post { showWeather() } }
             handler.postDelayed(this, WEATHER_TICK_MS)
         }
     }
@@ -182,7 +184,7 @@ class HomeActivity : Activity(), HomeView.Host {
         // TCL MStar: off the main thread, ask the adapter whether Home may restore STORAGE.
         // It only does so after Lite itself switched the input (or on the STORAGE-backed
         // firmware); CEC at boot and the viewer's own remote input key are left alone.
-        work.execute { TclMs901Sources.backToStorage(this) }
+        submit { TclMs901Sources.backToStorage(this) }
         if (SystemIntents.settingsBounced(this)) handler.postDelayed({
             if (resumed && hasWindowFocus()) SystemIntents.showXiaomiSettingsPopup(this)
         }, 400)
