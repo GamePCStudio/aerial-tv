@@ -139,8 +139,12 @@ object AdbReboot {
      * One adb message: 24 bytes of header, then its body. The header is command, arg0, arg1, length,
      * checksum, magic — every field little-endian, the checksum the plain sum of the body's bytes, and
      * the magic the command with all its bits flipped. The order matters and is not the order the words
-     * read nicely: adbd takes the magic last, which a real adb client's own frames show. adbd ignores
-     * the checksum today; filling it in is what keeps an Android 4 adbd from dropping the frame.
+     * read nicely: it is what a real adb 1.0.41 client puts on the wire, read back off a stand-in adbd
+     * that answers the frames the way AOSP's does — the magic last, checked, with the length.
+     *
+     * That client's own `OPEN` carries a checksum of 0 where its body sums to 2766, so the checksum is
+     * not one of adbd's checks today. Ours is filled in anyway: the field exists, and a sum that is
+     * right has never got a frame refused.
      */
     private fun frame(out: OutputStream, cmd: String, arg0: Int, arg1: Int, body: String? = null) {
         // adb's strings go on the wire as C strings, so the trailing NUL counts toward the length. A
