@@ -101,6 +101,10 @@ class HomeActivity : Activity(), HomeView.Host {
         })
         @Suppress("DEPRECATION")
         registerReceiver(connectivity, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        registerReceiver(clockSet, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        })
         if (savedInstanceState == null && SystemClock.elapsedRealtime() < 3 * 60 * 1000L) openBootApp()
     }
 
@@ -116,6 +120,7 @@ class HomeActivity : Activity(), HomeView.Host {
         Kids.onNotice = {}
         unregisterReceiver(packages)
         unregisterReceiver(connectivity)
+        unregisterReceiver(clockSet)
         hideSaver()
         Volume.stop()
         proxy.stop()
@@ -145,6 +150,19 @@ class HomeActivity : Activity(), HomeView.Host {
         root.systemUiVisibility = if (navBar) android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION else android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE
     }
 
+    /**
+     * While Home stays in front (its screensaver too), a reading that fell due is fetched: looked at
+     * only as Home came to the front, a failed one was not tried again all night (the full app's
+     * Weather.whileShown, issue #1576). Weather decides whether anything is due.
+     */
+    private val weatherTick = object : Runnable {
+        override fun run() {
+            if (!resumed) return
+            Weather.refreshIfStale({ work.execute(it) }) { handler.post { showWeather() } }
+            handler.postDelayed(this, WEATHER_TICK_MS)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         resumed = true
@@ -155,8 +173,16 @@ class HomeActivity : Activity(), HomeView.Host {
         showNetwork()
         showWeather()
         refreshDaily()
+        // Ours keeps the weather refresh off the pool that [submit] guards; upstream's two lines are the
+        // new "check again while Home stays in front" tick (#1576).
         Weather.refreshIfStale({ r -> submit { r.run() } }) { handler.post { showWeather() } }
+        handler.removeCallbacks(weatherTick)
+        handler.postDelayed(weatherTick, WEATHER_TICK_MS)
         resetIdle()
+        // TCL MStar: off the main thread, ask the adapter whether Home may restore STORAGE.
+        // It only does so after Lite itself switched the input (or on the STORAGE-backed
+        // firmware); CEC at boot and the viewer's own remote input key are left alone.
+        work.execute { TclMs901Sources.backToStorage(this) }
         if (SystemIntents.settingsBounced(this)) handler.postDelayed({
             if (resumed && hasWindowFocus()) SystemIntents.showXiaomiSettingsPopup(this)
         }, 400)
@@ -166,6 +192,7 @@ class HomeActivity : Activity(), HomeView.Host {
         resumed = false
         Kids.homeInFront = false
         handler.removeCallbacks(idle)
+        handler.removeCallbacks(weatherTick)
         hideSaver()
         // Back on Home the PIN is asked again (the full app relocks when an app opens).
         LiteSettings.relock()
@@ -185,6 +212,9 @@ class HomeActivity : Activity(), HomeView.Host {
         // tried on a Lite TV). Lite's own starts of this activity carry ACTION_MAIN.
         val homeByComponent = intent.action == null && intent.component?.packageName == packageName
         if (intent.hasCategory(Intent.CATEGORY_HOME) || homeByComponent) {
+            // An explicit Home wins over the brief "just switched" hold. The switch record is
+            // kept, so onResume may put the Android picture back after a Lite-initiated pick.
+            TclMs901Sources.homeRequested()
             hideSaver()
             closeAll()
             home.reset()
@@ -223,7 +253,23 @@ class HomeActivity : Activity(), HomeView.Host {
     // ---- loading ----
 
     /** "My Photos, in turn" on to its next photo when due: on coming back to Home and each minute while up. */
-    override fun minute() { if (resumed && Wallpapers.rotationDue()) loadBackdrop() }
+    override fun minute() {
+        panels.forEach { (it as? ControlCenter)?.refreshTime() }
+        if (resumed && Wallpapers.rotationDue()) loadBackdrop()
+    }
+
+    /**
+     * The TV's clock set, or its time zone: a box that boots at 8:00 on 1 January and sets the
+     * time from the network a while later kept 8:00 on Home until the next minute's tick (Android
+     * 4.4 box, Lite 1.30, issue #1588). The full app listens the same way (HomeChrome).
+     */
+    private val clockSet = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            home.refreshClock()
+            saver?.refreshTime()
+            panels.forEach { (it as? ControlCenter)?.refreshTime() }
+        }
+    }
 
     private fun loadBackdrop() {
         submit {
@@ -973,6 +1019,9 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     private fun open(intent: Intent) {
+        // A TCL MStar input is switched through the firmware's TV manager, not started as an
+        // Activity. Only Intents that carry the adapter's own enum-name extra are intercepted.
+        if (TclMs901Sources.switch(this, intent)) { closeAll(); return }
         try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (t: Throwable) {
@@ -1022,6 +1071,8 @@ class HomeActivity : Activity(), HomeView.Host {
         private const val DAILY_RETRY_MS = 30 * 60 * 1000L
         /** How long the 「现在重启」 confirmation stays alive: longer than the Toast that asks for it. */
         private const val REBOOT_CONFIRM_MS = 12 * 1000L
+        /** How often Home re-checks the weather while it stays the screen in front (#1576). */
+        private const val WEATHER_TICK_MS = 3 * 60 * 1000L
         private const val HOME_LAYER = 1
         private const val GRID_LAYER = 2
         /** The TVs' settings apps, kept behind the PIN (the full app's SystemProbe.isSettingsApp). */
