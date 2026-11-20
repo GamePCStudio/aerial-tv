@@ -101,6 +101,7 @@ class HomeActivity : Activity(), HomeView.Host {
         })
         @Suppress("DEPRECATION")
         registerReceiver(connectivity, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        showBattery(registerReceiver(battery, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
         registerReceiver(clockSet, IntentFilter().apply {
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
@@ -120,6 +121,7 @@ class HomeActivity : Activity(), HomeView.Host {
         Kids.onNotice = {}
         unregisterReceiver(packages)
         unregisterReceiver(connectivity)
+        unregisterReceiver(battery)
         unregisterReceiver(clockSet)
         hideSaver()
         Volume.stop()
@@ -158,6 +160,8 @@ class HomeActivity : Activity(), HomeView.Host {
     private val weatherTick = object : Runnable {
         override fun run() {
             if (!resumed) return
+            // Also redrawn when nothing was fetched: the reading's age moves on (the full app's #1576).
+            showWeather()
             // Ours dispatches through [submit]: the pool is closed by onDestroy, and this tick can land
             // after that (upstream wrote work.execute directly, which is the crash this branch fixed).
             Weather.refreshIfStale({ r -> submit { r.run() } }) { handler.post { showWeather() } }
@@ -377,6 +381,20 @@ class HomeActivity : Activity(), HomeView.Host {
             if (Wallpapers.dailyFailed) refreshDaily(networkUp = true)
             Weather.refreshIfStale({ r -> submit { r.run() } }, networkUp = true) { handler.post { showWeather() } }
         }
+    }
+
+    /** The battery, for the pill: shown only where there is one and it is not plugged in full (#1426). */
+    private val battery = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = showBattery(intent)
+    }
+
+    private fun showBattery(i: Intent?) {
+        val present = i != null && i.getBooleanExtra(android.os.BatteryManager.EXTRA_PRESENT, false)
+        val scale = i?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)?.coerceAtLeast(1) ?: 100
+        val percent = (i?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1) * 100 / scale
+        val plugged = (i?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
+        home.pill.battery = if (!present || percent < 0 || (plugged && percent >= 100)) -1 else percent
+        home.pill.charging = plugged
     }
 
     private val dailyRetry = Runnable { refreshDaily() }
