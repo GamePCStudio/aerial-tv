@@ -269,6 +269,10 @@ class HomeGuardService : AccessibilityService() {
         goHome()
     }
 
+    /** A package installer or app store, what an update from Control Center leaves in front. */
+    private fun isInstaller(pkg: String): Boolean =
+        "installer" in pkg || pkg == "com.android.vending" || pkg == "com.dangbeimarket"
+
     /** Whether usage stats, where Aerial may read them, show a stock launcher in front now. */
     private fun stockLauncherByUsageStats(): Boolean {
         if (!usageStatsAllowed(this)) return false
@@ -601,7 +605,39 @@ class HomeGuardService : AccessibilityService() {
             screenOnAt = SystemClock.elapsedRealtime()
             restartForegroundCheck()
             takeOverOnceSettled("screen on", woke = true)
+            closeChooserAfterWake()
         }
+    }
+
+    /**
+     * Wake from standby: the firmware may put the Home chooser in front before the guard is
+     * delivering events again, and no window change ever follows it (XGIMI H3S, pig_chivalrous,
+     * Android 9: three minutes with the chooser holding the focus and not one accessibility event
+     * seen, 2026-11-19). canRetrieveWindowContent is off, so usage stats are the only front the
+     * guard can read there: they are read again a few times after the screen lights, and while
+     * Aerial stays behind, Back closes the chooser, which resumes Aerial.
+     */
+    private var chooserCheckRun = 0
+
+    private fun closeChooserAfterWake(run: Int = 0, left: Int = WAKE_CHOOSER_RECHECKS) {
+        // One run at a time: a boot pauses Aerial more than once, and two runs would both send
+        // the Back that one chooser needs.
+        if (run == 0) {
+            chooserCheckRun++
+            return closeChooserAfterWake(chooserCheckRun, left)
+        }
+        if (run != chooserCheckRun || left <= 0 || aerialResumed) return
+        handler.postDelayed({ closeChooserAfterWake(run, left - 1) }, WAKE_CHOOSER_RECHECK_MS)
+        if (SystemClock.uptimeMillis() - aerialPausedAt > WAKE_CHOOSER_MS) return
+        val front = foreground()?.first ?: return
+        if (!isHomeChooser(front.first, front.second)) return
+        val since = SystemClock.uptimeMillis() - aerialPausedAt
+        Log.i(TAG, "the Home chooser is in front after the wake; closing it")
+        DiagLog.i(
+            "guard: wake, usage stats name ${front.first}/${front.second} in front, " +
+                "sincePaused=$since, wide=${wideResolvedHome()}; Back"
+        )
+        performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
     /**
@@ -1056,8 +1092,19 @@ class HomeGuardService : AccessibilityService() {
         if (justUpdated() && getSystemService<PowerManager>()?.isInteractive == true &&
             GuardSetup.installerJustClosed(this)
         ) {
-            DiagLog.i("guard: bound again after Aerial's own update; bringing Aerial back over the installer")
-            handler.postDelayed({ if (!aerialResumed) goHome() }, AFTER_UPDATE_MS)
+            handler.postDelayed({
+                if (aerialResumed) return@postDelayed
+                // Only over the installer or a stock launcher. An update finished in the
+                // background while TVBox played on Xiaomi MiTV-MFTR0 (Android 14), and this pulled
+                // the viewer back to Home (issue #1689, the reporter's logcat).
+                val app = frontByUsage()?.first
+                if (app != null && !isInstaller(app) && !isStockHome(app)) {
+                    DiagLog.i("guard: bound again after Aerial's own update with $app in front; leaving it there")
+                } else {
+                    DiagLog.i("guard: bound again after Aerial's own update; bringing Aerial back over the installer")
+                    goHome()
+                }
+            }, AFTER_UPDATE_MS)
         }
         // Bound a little after boot, or brought back after the firmware killed Aerial: either way
         // the stock launcher is what's in front, and the window change that showed it is long gone.
@@ -2459,6 +2506,11 @@ class HomeGuardService : AccessibilityService() {
         /** How long the stock launcher's own start may show the firmware's SystemUI; see visitStillOpening. */
         private const val STOCK_OPENING_MS = 2_000L
         private const val WAKE_WINDOW_MS = 15_000L
+        /** How often and how many times to look for the chooser a wake leaves in front; see closeChooserAfterWake. */
+        private const val WAKE_CHOOSER_RECHECK_MS = 1_000L
+        private const val WAKE_CHOOSER_RECHECKS = 15
+        /** How recently Aerial must have been in front for the chooser to be the wake's own; see closeChooserAfterWake. */
+        private const val WAKE_CHOOSER_MS = 60_000L
         private val BOOT_RECHECKS_MS = listOf(30_000L, 45_000L)
         private const val COVERED_UNSEEN_MS = 3_000L
         private const val DEAF_AFTER_MS = 20_000L
@@ -3050,6 +3102,11 @@ class HomeGuardService : AccessibilityService() {
                 s.goHome()
                 return true
             }
+            // The same firmware puts the chooser in front while Aerial is still starting after a
+            // boot: XGIMI H3S, 18 s of a dead remote before the boot rechecks came round
+            // (2026-11-19). A pause this early in a boot gets the look a wake gets, and only a
+            // chooser found in front is answered.
+            if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) s.closeChooserAfterWake()
             return false
         }
     }
