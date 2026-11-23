@@ -262,7 +262,7 @@ object AppCatalog {
         // comes before what Aerial would draw from its banner or icon.
         val custom = CustomIcons.load(pkg)
         val library = if (!square && custom == null && (own == null || IconLibrary.pick(pkg) == IconLibrary.Pick.Library)) IconLibrary.load(pkg) else null
-        val recipe = TileRecipes.of(pkg)
+        val recipe = TileRecipes.of(pkg, pm)
         val art = runCatching {
             when {
                 // SuperHome's square tiles: the app's own icon, and the owner's own picture if they
@@ -322,7 +322,7 @@ object AppCatalog {
     fun ownArt(context: Context, app: AppEntry): Bitmap? = runCatching {
         val pm = context.packageManager
         val info = pm.getActivityInfo(app.component, 0)
-        val recipe = TileRecipes.of(app.key)
+        val recipe = TileRecipes.of(app.key, pm)
         val banner = banner(pm, info, app.leanback)
         val system = drawnByAerial[app.key]
         val square = LiteSettings.iconShape.square
