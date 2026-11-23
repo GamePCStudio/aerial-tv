@@ -2,4 +2,5 @@
 <resources>
     <!-- The Kazakh counterpart of the same sentence: only the name is SuperHome's. -->
     <string name="cc_home_default">SuperHome — сіздің басты экраныңыз</string>
+    <string name="cc_about">SuperHome туралы</string>
 </resources>

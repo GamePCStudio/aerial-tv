@@ -2,4 +2,5 @@
 <resources>
     <!-- The Ukrainian counterpart of the same sentence: only the name is SuperHome's. -->
     <string name="cc_home_default">SuperHome — ваш головний екран</string>
+    <string name="cc_about">Про SuperHome</string>
 </resources>

@@ -3,4 +3,5 @@
     <!-- Only the name in the Control Center's status sentence is SuperHome's own; the rest of this
          sentence is upstream's, kept so a Russian TV still reads its own language. -->
     <string name="cc_home_default">SuperHome — ваш главный экран</string>
+    <string name="cc_about">О SuperHome</string>
 </resources>

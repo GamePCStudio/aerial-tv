@@ -21,8 +21,8 @@ android {
         minSdk = 14
         targetSdk = 34
         // This branch restarts versioning: 1xx for the SuperHome line. Carries upstream's Lite 1.40.
-        versionCode = 138
-        versionName = "1.37"
+        versionCode = 139
+        versionName = "1.38"
     }
 
     // Signed with this branch's own key (local/signing.properties, handed to Actions as secrets);
@@ -116,10 +116,10 @@ val copyStrings by tasks.registering(Copy::class) {
         rename("strings.xml", "app_strings.xml")
     }
     into(sharedRes)
-    // The two sentences SuperHome says about itself: its name, and the Control Center's line about
-    // being the TV's home. Cut here so Lite's own values*/strings.xml is the only definition — the
-    // merged resources would otherwise hold two of the same name.
-    val ours = setOf("app_name", "cc_home_default")
+    // The sentences SuperHome says about itself: its name, whether it is the TV's Home, and the
+    // Personalize About group's title. Cut here so Lite's own values*/strings.xml is the only
+    // definition — the merged resources would otherwise hold two of the same name.
+    val ours = setOf("app_name", "cc_home_default", "cc_about")
     filter { line -> if (ours.any { n -> line.contains("name=\"$n\"") }) "" else line }
 }
 android.sourceSets["main"].res.srcDir(sharedRes)

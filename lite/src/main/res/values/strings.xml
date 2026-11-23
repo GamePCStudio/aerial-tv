@@ -8,6 +8,8 @@
          half — 「尚未设为默认桌面」— says no name, so that one stays upstream's in all five. -->
     <string name="cc_home_default">SuperHome is your home screen</string>
 
+    <string name="cc_about">About SuperHome</string>
+
     <!-- SuperHome's Personalize row: the shape of an app's picture. -->
     <string name="sh_icon_type">App icon type</string>
     <string name="sh_shape_wide">Wide</string>

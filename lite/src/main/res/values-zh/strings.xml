@@ -6,6 +6,8 @@
     <!-- 右上角设置右下角那句状态：只把名字换成 SuperHome，其余字照上游。 -->
     <string name="cc_home_default">SuperHome 是默认桌面</string>
 
+    <string name="cc_about">关于 SuperHome</string>
+
     <!-- 个性化里的磁贴形状一行。 -->
     <string name="sh_icon_type">App图标类型</string>
     <string name="sh_shape_wide">长方形</string>
