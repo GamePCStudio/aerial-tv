@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -70,6 +71,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.orchard.tv.BuildConfig
+import app.orchard.tv.WallpaperFocus
 import app.orchard.tv.R
 import app.orchard.tv.system.HomeStatus
 import app.orchard.tv.update.Updates
@@ -120,6 +122,7 @@ import androidx.compose.ui.geometry.Size
 @Composable
 fun WallpaperSheet(
     visible: Boolean,
+    focusTarget: WallpaperFocus = WallpaperFocus.Default,
     onDismiss: () -> Unit,
     hiddenCount: Int,
     onHiddenApps: () -> Unit,
@@ -138,6 +141,7 @@ fun WallpaperSheet(
     warm: Boolean = false,
 ) {
     val context = LocalContext.current
+    val hiddenAppsFocus = remember { FocusRequester() }
     var phoneUrl by remember { mutableStateOf<String?>(null) }
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
 
@@ -156,6 +160,13 @@ fun WallpaperSheet(
     shown.targetState = visible
     val settled = shown.isIdle && shown.currentState
     LaunchedEffect(settled) { onSettled(settled) }
+
+    // Hidden apps return to this sheet; wait until its entrance has settled before requesting focus.
+    LaunchedEffect(visible, focusTarget, settled) {
+        if (!visible || !settled || focusTarget != WallpaperFocus.HiddenApps) return@LaunchedEffect
+        withFrameNanos { }
+        runCatching { hiddenAppsFocus.requestFocus() }
+    }
 
     AnimatedVisibility(visible = visible, enter = fadeIn(tween(220, easing = Motion.EaseOut)), exit = fadeOut(tween(180, easing = Motion.EaseOut)), modifier = Modifier.fillMaxSize()) {
         // A tap above the sheet closes it, back to Control Center as Back does. Once the sheet is
@@ -190,7 +201,7 @@ fun WallpaperSheet(
                 BasicText(stringResource(R.string.wp_title), style = Type.LargeTitle)
                 Spacer(Modifier.height(16.dp))
                 SectionTitle(R.string.wp_wallpaper)
-                WallpaperRows(takeFocus)
+                WallpaperRows(takeFocus && focusTarget == WallpaperFocus.Default)
                 // Only for the owner's videos: whether keys stop them. The aerial films always move.
                 if (Wallpapers.isVideo()) Group { note ->
                     Choices(
@@ -250,6 +261,7 @@ fun WallpaperSheet(
                             if (hiddenCount == 0) stringResource(R.string.st_hidden_none) else stringResource(R.string.st_hidden_count, hiddenCount),
                             Glyph.ChevronRight,
                             onHiddenApps,
+                            focusRequester = hiddenAppsFocus,
                         )
                     }
                     Choices(
@@ -284,46 +296,55 @@ fun WallpaperSheet(
                 Spacer(Modifier.height(10.dp))
                 Group { note ->
                     Choices(
-                        R.string.st_focus_style,
-                        stringResource(if (AerialSettings.focusStyle == FocusStyle.HighContrast) R.string.st_focus_high_hint else R.string.st_focus_standard_hint),
-                        note,
+                        R.string.st_focus_style, null, note,
                         listOf(FocusStyle.HighContrast to R.string.st_focus_high, FocusStyle.Standard to R.string.st_focus_standard),
                         AerialSettings.focusStyle, AerialSettings::chooseFocusStyle, first = true,
+                        hintOf = { stringResource(if (it == FocusStyle.HighContrast) R.string.st_focus_high_hint else R.string.st_focus_standard_hint) },
                     )
                     Choices(
-                        R.string.st_sounds,
-                        stringResource(if (AerialSettings.uiSounds == UiSounds.Tv) R.string.st_sounds_tv_hint else R.string.st_sounds_hint),
-                        note,
+                        R.string.st_sounds, null, note,
                         listOf(UiSounds.Tv to R.string.st_sounds_tv, UiSounds.Aerial to R.string.st_sounds_aerial, UiSounds.Off to R.string.st_off),
                         AerialSettings.uiSounds, { AerialSettings.chooseUiSounds(it); Sounds.prepare() },
+                        hintOf = {
+                            when (it) {
+                                UiSounds.Tv -> stringResource(R.string.st_sounds_tv_hint)
+                                UiSounds.Aerial -> stringResource(R.string.st_sounds_hint)
+                                UiSounds.Off -> null
+                            }
+                        },
                     )
                     Choices(
-                        R.string.st_effects,
-                        stringResource(
-                            if (AerialSettings.effects == Effects.Auto && AerialSettings.lowEnd) R.string.st_effects_auto_lite_hint
-                            else R.string.st_effects_hint,
-                        ),
-                        note,
+                        R.string.st_effects, null, note,
                         listOf(Effects.Auto to R.string.st_effects_auto, Effects.Full to R.string.st_effects_full, Effects.Lite to R.string.st_effects_lite),
                         AerialSettings.effects, AerialSettings::chooseEffects,
+                        hintOf = {
+                            stringResource(
+                                if (it == Effects.Auto && AerialSettings.lowEnd) R.string.st_effects_auto_lite_hint
+                                else R.string.st_effects_hint,
+                            )
+                        },
                     )
                 }
 
                 Spacer(Modifier.height(22.dp))
                 SectionTitle(R.string.wp_screensaver)
                 Group { note ->
+                    // The note is the focused chip's (the chosen one's on "Start Now"), issue #1782.
+                    var focusedMode by remember { mutableStateOf<ScreensaverMode?>(null) }
+                    val mode = focusedMode ?: Wallpapers.screensaver
                     SettingRow(
                         R.string.ss_kind,
                         when {
-                            Wallpapers.screensaver == ScreensaverMode.Videos -> stringResource(R.string.ss_videos_hint)
-                            Wallpapers.screensaver == ScreensaverMode.System -> stringResource(R.string.ss_system_hint)
-                            Wallpapers.screensaver == ScreensaverMode.Sleep -> stringResource(R.string.ss_sleep_hint)
-                            Wallpapers.screensaverFollows -> stringResource(R.string.ss_follow_hint)
+                            mode == ScreensaverMode.Videos -> stringResource(R.string.ss_videos_hint)
+                            mode == ScreensaverMode.System -> stringResource(R.string.ss_system_hint)
+                            mode == ScreensaverMode.Sleep -> stringResource(R.string.ss_sleep_hint)
+                            // Following the wallpaper is what the chosen mode does until one is picked.
+                            mode == Wallpapers.screensaver && Wallpapers.screensaverFollows -> stringResource(R.string.ss_follow_hint)
                             AerialSettings.backStartsScreensaver -> stringResource(R.string.ss_back_hint)
                             else -> null
                         },
                         note, first = true,
-                    ) { ScreensaverChoice(onStartScreensaver) }
+                    ) { ScreensaverChoice(onStartScreensaver, onFocusMode = { focusedMode = it }) }
                     // Only the qualities this TV can play; a 1080p-only TV has nothing to choose.
                     val qualities = remember { AerialFormats.supported(context) }
                     if (qualities.size > 1) {
@@ -646,16 +667,27 @@ private fun Group(note: String? = null, rows: @Composable ColumnScope.(note: (St
     }
 }
 
-/** One row: the setting's name on the left, its control on the right, a hairline above all but the first. */
+/**
+ * One row: the setting's name on the left, its control on the right, a hairline above all but the first.
+ * The note follows [hint] while the row has focus: a hint that describes one option changes as
+ * focus moves along the chips or a chip is chosen (issue #1782: it stayed the one from when the
+ * row took focus).
+ */
 @Composable
 private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first: Boolean = false, control: @Composable () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(focused, hint) { if (focused) note(hint) }
     if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
     Row(
         Modifier
             .fillMaxWidth()
             .height(58.dp)
             .padding(start = 18.dp, end = 10.dp)
-            .onFocusChanged { if (it.hasFocus) note(hint) },
+            .onFocusChanged {
+                // At once as well, so the row above's note does not show for a frame under this row.
+                if (it.hasFocus && !focused) note(hint)
+                focused = it.hasFocus
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicText(stringResource(label), style = Type.Body, modifier = Modifier.weight(1f), maxLines = 1)
@@ -663,7 +695,10 @@ private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first
     }
 }
 
-/** A row of chips for one of a few values. */
+/**
+ * A row of chips for one of a few values. With [hintOf], the note is the focused chip's (the
+ * chosen one's before a chip has focus), not one for the row.
+ */
 @Composable
 private fun <T> Choices(
     label: Int,
@@ -673,11 +708,20 @@ private fun <T> Choices(
     current: T,
     choose: (T) -> Unit,
     first: Boolean = false,
+    hintOf: (@Composable (T) -> String?)? = null,
 ) {
-    SettingRow(label, hint, note, first) {
+    var focusedValue by remember { mutableStateOf<T?>(null) }
+    val rowHint = if (hintOf != null) hintOf(focusedValue ?: current) else hint
+    SettingRow(label, rowHint, note, first) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            options.forEach { (value, text) ->
-                Chip(if (text is Int) stringResource(text) else text.toString(), on = current == value) { choose(value) }
+            options.forEachIndexed { index, (value, text) ->
+                Chip(
+                    if (text is Int) stringResource(text) else text.toString(),
+                    on = current == value,
+                    onFocused = if (hintOf != null) ({ focusedValue = value }) else null,
+                    rowStart = index == 0,
+                    rowEnd = index == options.lastIndex,
+                ) { choose(value) }
             }
         }
     }
@@ -687,8 +731,11 @@ private fun <T> Choices(
 @Composable
 private fun PinChoice(onPin: (on: Boolean) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf(false to R.string.st_pin_off, true to R.string.st_pin_on).forEach { (on, label) ->
-            Chip(stringResource(label), on = AerialSettings.pinSet == on) {
+        listOf(false to R.string.st_pin_off, true to R.string.st_pin_on).forEachIndexed { index, (on, label) ->
+            Chip(
+                stringResource(label), on = AerialSettings.pinSet == on,
+                rowStart = index == 0, rowEnd = index == 1,
+            ) {
                 if (AerialSettings.pinSet != on) onPin(on)
             }
         }
@@ -722,8 +769,22 @@ private fun WeatherValue() {
 
 /** A pill to pick one of a few options: a check on the chosen one, white when focused. */
 @Composable
-private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, compact: Boolean = false, onClick: () -> Unit) {
-    Pressable(onClick = onClick, focusedScale = 1.06f) { state ->
+private fun Chip(
+    label: String,
+    on: Boolean,
+    onFocused: (() -> Unit)? = null,
+    compact: Boolean = false,
+    rowStart: Boolean = false,
+    rowEnd: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Pressable(
+        onClick = onClick, focusedScale = 1.06f,
+        modifier = Modifier.focusProperties {
+            if (rowStart) left = FocusRequester.Cancel
+            if (rowEnd) right = FocusRequester.Cancel
+        },
+    ) { state ->
         if (onFocused != null) LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         val bg by animateColorAsState(
             when {
@@ -747,8 +808,14 @@ private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, co
 
 /** A pill that does something rather than choosing a value: white when focused, a glyph after its label. */
 @Composable
-private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
-    Pressable(onClick = onClick, focusedScale = 1.06f) { state ->
+private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit, focusRequester: FocusRequester? = null) {
+    Pressable(
+        onClick = onClick, focusRequester = focusRequester, focusedScale = 1.06f,
+        modifier = Modifier.focusProperties {
+            left = FocusRequester.Cancel
+            right = FocusRequester.Cancel
+        },
+    ) { state ->
         val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "action-bg")
         val fg = if (state.focused) Palette.OnFocus else Palette.Label
         Row(
@@ -763,27 +830,37 @@ private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ScreensaverChoice(onStart: () -> Unit) {
+private fun ScreensaverChoice(onStart: () -> Unit, onFocusMode: (ScreensaverMode?) -> Unit) {
     // Standby only where the guard can put the TV to sleep (issue #1436), or still chosen.
     val sleep = remember { HomeGuardService.canSleep } || Wallpapers.screensaver == ScreensaverMode.Sleep
+    val modes = listOf(
+        ScreensaverMode.Aerial to R.string.ss_aerial,
+        ScreensaverMode.Photos to R.string.ss_photos,
+        ScreensaverMode.Clock to R.string.ss_clock,
+        ScreensaverMode.Videos to R.string.ss_videos,
+        ScreensaverMode.System to R.string.ss_system,
+    ).let { if (sleep) it + (ScreensaverMode.Sleep to R.string.ss_sleep) else it }
+    val hasStart = Wallpapers.screensaver != ScreensaverMode.Sleep
     // The choice first, then the action that tries it.
     // Six choices with Standby: narrower chips and gaps, so the row's label keeps its room.
     Row(horizontalArrangement = Arrangement.spacedBy(if (sleep) 8.dp else 10.dp)) {
-        listOf(
-            ScreensaverMode.Aerial to R.string.ss_aerial,
-            ScreensaverMode.Photos to R.string.ss_photos,
-            ScreensaverMode.Clock to R.string.ss_clock,
-            ScreensaverMode.Videos to R.string.ss_videos,
-            ScreensaverMode.System to R.string.ss_system,
-        ).let { if (sleep) it + (ScreensaverMode.Sleep to R.string.ss_sleep) else it }.forEach { (mode, label) ->
-            Chip(stringResource(label), on = Wallpapers.screensaver == mode, compact = sleep) { Wallpapers.chooseScreensaver(mode) }
+        modes.forEachIndexed { index, (mode, label) ->
+            Chip(
+                stringResource(label), on = Wallpapers.screensaver == mode, compact = sleep,
+                onFocused = { onFocusMode(mode) },
+                rowStart = index == 0, rowEnd = !hasStart && index == modes.lastIndex,
+            ) { Wallpapers.chooseScreensaver(mode) }
         }
         if (!sleep) Spacer(Modifier.width(6.dp))
         // Nothing to try with Standby: starting it puts the TV to sleep. With its chip the row has
         // no room for "Start Now" in words (it wrapped to two lines and pushed the row's label out,
         // TCL MT5879): the play glyph alone then, still read out by its name.
         val start = stringResource(R.string.ss_start)
-        if (Wallpapers.screensaver != ScreensaverMode.Sleep) Pressable(onClick = onStart, focusedScale = 1.06f, label = start) { state ->
+        if (hasStart) Pressable(
+            onClick = onStart, focusedScale = 1.06f, label = start,
+            modifier = Modifier.focusProperties { right = FocusRequester.Cancel },
+        ) { state ->
+            LaunchedEffect(state.focused) { if (state.focused) onFocusMode(null) }
             val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "ss-start")
             val fg = if (state.focused) Palette.OnFocus else Palette.Label
             Row(
